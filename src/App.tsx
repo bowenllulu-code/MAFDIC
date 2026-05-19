@@ -11,7 +11,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { snapshotFromProvider, type ConsoleDataSnapshot } from "./adapters";
+import { snapshotFromProvider, type ApiResponse, type ConsoleDataSnapshot } from "./adapters";
 import { ActionPreviewModal, DetailDrawer } from "./components/overlays";
 import { mockApiClient } from "./mockApi";
 import { mockProvider } from "./mockProvider";
@@ -51,13 +51,84 @@ function App() {
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
   const current = useMemo(() => navigation.find((item) => item.id === activePage), [activePage]);
+  const loadModularConsoleData = async (): Promise<ApiResponse<ConsoleDataSnapshot>> => {
+    const [
+      metrics,
+      customers,
+      orders,
+      holdings,
+      risks,
+      opportunities,
+      configs,
+      tasks,
+      assistantActions,
+      reportTemplates,
+      metricDefinitions,
+      opportunityAttributions,
+      baseAgentTasks,
+    ] = await Promise.all([
+      mockApiClient.listMetrics(),
+      mockApiClient.searchCustomers({ pageSize: 100 }),
+      mockApiClient.searchOrders({ pageSize: 100 }),
+      mockApiClient.searchHoldings({ pageSize: 100 }),
+      mockApiClient.searchRisks({ pageSize: 100 }),
+      mockApiClient.searchOpportunities({ pageSize: 100 }),
+      mockApiClient.searchConfigs({ pageSize: 100 }),
+      mockApiClient.searchTasks({ pageSize: 100 }),
+      mockApiClient.listAssistantActions(),
+      mockApiClient.listReportTemplates(),
+      mockApiClient.listMetricDefinitions(),
+      mockApiClient.listOpportunityAttributions(),
+      mockApiClient.listAgentTasks(),
+    ]);
+    const responses = [
+      metrics,
+      customers,
+      orders,
+      holdings,
+      risks,
+      opportunities,
+      configs,
+      tasks,
+      assistantActions,
+      reportTemplates,
+      metricDefinitions,
+      opportunityAttributions,
+      baseAgentTasks,
+    ];
+    const failed = responses.find((response) => !response.ok);
+    if (failed && !failed.ok) {
+      return failed;
+    }
+    return {
+      ok: true,
+      traceId: customers.ok ? customers.traceId : "mock-api",
+      source: "mock-api" as const,
+      receivedAt: new Date().toISOString(),
+      data: {
+        metrics: metrics.ok ? metrics.data : [],
+        customers: customers.ok ? customers.data.items : [],
+        orders: orders.ok ? orders.data.items : [],
+        holdings: holdings.ok ? holdings.data.items : [],
+        risks: risks.ok ? risks.data.items : [],
+        opportunities: opportunities.ok ? opportunities.data.items : [],
+        configs: configs.ok ? configs.data.items : [],
+        tasks: tasks.ok ? tasks.data.items : [],
+        assistantActions: assistantActions.ok ? assistantActions.data : [],
+        reportTemplates: reportTemplates.ok ? reportTemplates.data : [],
+        metricDefinitions: metricDefinitions.ok ? metricDefinitions.data : [],
+        opportunityAttributions: opportunityAttributions.ok ? opportunityAttributions.data : [],
+        agentTasks: baseAgentTasks.ok ? baseAgentTasks.data : [],
+      },
+    };
+  };
   const loadConsoleData = async () => {
     setApiState("loading");
-    const response = await mockApiClient.getConsoleSnapshot();
+    const response = await loadModularConsoleData();
     if (response.ok) {
       setConsoleData(response.data);
       setApiState("ready");
-      setApiTrace(`${response.source} · ${response.traceId}`);
+      setApiTrace(`${response.source} modules · ${response.traceId}`);
       return;
     }
     setApiState("error");
@@ -66,12 +137,12 @@ function App() {
 
   useEffect(() => {
     let ignore = false;
-    void mockApiClient.getConsoleSnapshot().then((response) => {
+    void loadModularConsoleData().then((response) => {
       if (ignore) return;
       if (response.ok) {
         setConsoleData(response.data);
         setApiState("ready");
-        setApiTrace(`${response.source} · ${response.traceId}`);
+        setApiTrace(`${response.source} modules · ${response.traceId}`);
         return;
       }
       setApiState("error");

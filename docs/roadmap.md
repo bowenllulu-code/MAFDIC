@@ -103,15 +103,29 @@ Current frontend prototype coverage:
 - Move UI reads from static provider access to an API-backed data snapshot
 - Add mock latency, trace id, source marker, loading state, error state, and manual refresh
 - Keep mock provider available as the local data source behind the API client
+- Add module-level mock APIs for customers, orders, holdings, risks, opportunities, configs, tasks, metrics, reports, attribution, and agent tasks
+- Add query objects with keyword, paging, status, severity, customer, and configuration-type filters
+- Add table empty states for query results
 
 Current frontend prototype coverage:
 
 - `ConsoleDataSnapshot` represents the UI-facing data contract
 - `mockApiClient.getConsoleSnapshot()` returns a unified `ApiResponse`
+- `mockApiClient` also exposes module-level search and list methods that return `PageResult<T>`
 - App shell loads data through the mock API client and shows loading, source, trace id, and refresh controls
+- App shell now builds the console data snapshot by calling module APIs in parallel
 - Console pages and detail drawer now consume the API-backed snapshot instead of direct static module constants
 
-## Phase 8: Production Integration
+## Phase 8: Permission And Role Model
+
+- Add role definitions for operations staff, clearing staff, configuration staff, risk operators, managers, and administrators
+- Add page-level permission checks
+- Add operation-level permission checks
+- Add data-scope placeholders
+- Add AI action authorization boundaries
+- Add readonly and forbidden states
+
+## Phase 9: Production Integration
 
 - Connect external APIs for transaction records, fund market data, customer information, sales opportunities, holdings, revenue, and attribution inputs
 - Replace mock providers with API adapters
@@ -122,4 +136,4 @@ Current frontend prototype coverage:
 
 ## Immediate Next Step
 
-Continue toward a mock API layer so the frontend can switch from static mock providers to replaceable service endpoints before real API integration.
+Add the permission and role model before connecting real APIs, so authentication, data scope, and AI action approval can be mapped cleanly during integration.

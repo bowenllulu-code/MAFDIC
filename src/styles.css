@@ -627,6 +627,12 @@ tr:last-child td {
   border-bottom: 0;
 }
 
+.table-empty {
+  height: 76px;
+  color: #667085;
+  text-align: center;
+}
+
 .timeline div {
   display: grid;
   gap: 4px;

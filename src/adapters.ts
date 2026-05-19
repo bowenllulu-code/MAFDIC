@@ -66,8 +66,59 @@ export type ApiResponse<T> =
       receivedAt: string;
     };
 
+export type PageResult<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+};
+
+export type ListQuery = {
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export type CustomerQuery = ListQuery & {
+  riskLevel?: string;
+  status?: Customer["status"];
+};
+
+export type OrderQuery = ListQuery & {
+  customerId?: string;
+  confirmationStatus?: TransactionOrder["confirmationStatus"];
+};
+
+export type RiskQuery = ListQuery & {
+  severity?: RiskEvent["severity"];
+  status?: RiskEvent["status"];
+};
+
+export type ConfigQuery = ListQuery & {
+  type?: ConfigItem["type"];
+  status?: ConfigItem["status"];
+};
+
+export type OpportunityQuery = ListQuery & {
+  customerId?: string;
+  stage?: string;
+};
+
 export type ConsoleApiClient = {
   getConsoleSnapshot(): Promise<ApiResponse<ConsoleDataSnapshot>>;
+  searchCustomers(query?: CustomerQuery): Promise<ApiResponse<PageResult<Customer>>>;
+  searchOrders(query?: OrderQuery): Promise<ApiResponse<PageResult<TransactionOrder>>>;
+  searchHoldings(query?: ListQuery & { customerId?: string }): Promise<ApiResponse<PageResult<Holding>>>;
+  searchRisks(query?: RiskQuery): Promise<ApiResponse<PageResult<RiskEvent>>>;
+  searchOpportunities(query?: OpportunityQuery): Promise<ApiResponse<PageResult<Opportunity>>>;
+  searchConfigs(query?: ConfigQuery): Promise<ApiResponse<PageResult<ConfigItem>>>;
+  searchTasks(query?: ListQuery): Promise<ApiResponse<PageResult<Task>>>;
+  listMetrics(): Promise<ApiResponse<Metric[]>>;
+  listAssistantActions(): Promise<ApiResponse<AssistantAction[]>>;
+  listReportTemplates(): Promise<ApiResponse<ReportTemplate[]>>;
+  listMetricDefinitions(): Promise<ApiResponse<MetricDefinition[]>>;
+  listOpportunityAttributions(): Promise<ApiResponse<OpportunityAttribution[]>>;
+  listAgentTasks(): Promise<ApiResponse<AgentTask[]>>;
 };
 
 export function snapshotFromProvider(provider: ConsoleDataProvider): ConsoleDataSnapshot {

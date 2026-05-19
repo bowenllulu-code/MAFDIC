@@ -90,7 +90,7 @@ export function OperationQueue({
   );
 }
 
-export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNode[][] }) {
+export function DataTable({ columns, rows, emptyText = "暂无匹配数据" }: { columns: string[]; rows: ReactNode[][]; emptyText?: string }) {
   return (
     <div className="table-wrap">
       <table>
@@ -100,11 +100,17 @@ export function DataTable({ columns, rows }: { columns: string[]; rows: ReactNod
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>
-              {row.map((cell, cellIndex) => <td key={`${index}-${cellIndex}`}>{cell}</td>)}
+          {rows.length === 0 ? (
+            <tr>
+              <td className="table-empty" colSpan={columns.length}>{emptyText}</td>
             </tr>
-          ))}
+          ) : (
+            rows.map((row, index) => (
+              <tr key={index}>
+                {row.map((cell, cellIndex) => <td key={`${index}-${cellIndex}`}>{cell}</td>)}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

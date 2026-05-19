@@ -69,6 +69,27 @@ type PageResult<T> = {
 };
 ```
 
+当前 Mock API 已按模块暴露查询接口，页面快照由这些接口并行组装：
+
+```ts
+type ConsoleApiClient = {
+  getConsoleSnapshot(): Promise<ApiResponse<ConsoleDataSnapshot>>;
+  searchCustomers(query?: CustomerQuery): Promise<ApiResponse<PageResult<Customer>>>;
+  searchOrders(query?: OrderQuery): Promise<ApiResponse<PageResult<TransactionOrder>>>;
+  searchHoldings(query?: HoldingQuery): Promise<ApiResponse<PageResult<Holding>>>;
+  searchRisks(query?: RiskQuery): Promise<ApiResponse<PageResult<RiskEvent>>>;
+  searchOpportunities(query?: OpportunityQuery): Promise<ApiResponse<PageResult<Opportunity>>>;
+  searchConfigs(query?: ConfigQuery): Promise<ApiResponse<PageResult<ConfigItem>>>;
+  searchTasks(query?: ListQuery): Promise<ApiResponse<PageResult<Task>>>;
+  listMetrics(): Promise<ApiResponse<Metric[]>>;
+  listAssistantActions(): Promise<ApiResponse<AssistantAction[]>>;
+  listReportTemplates(): Promise<ApiResponse<ReportTemplate[]>>;
+  listMetricDefinitions(): Promise<ApiResponse<MetricDefinition[]>>;
+  listOpportunityAttributions(): Promise<ApiResponse<OpportunityAttribution[]>>;
+  listAgentTasks(): Promise<ApiResponse<AgentTask[]>>;
+};
+```
+
 ### AdapterError
 
 ```ts
