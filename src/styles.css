@@ -127,6 +127,7 @@ main {
 
 .topbar-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
@@ -139,6 +140,53 @@ main {
   border-radius: 8px;
   background: #eef2f6;
   color: #344054;
+}
+
+.api-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  max-width: 260px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.api-pill-ready {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.api-pill-loading {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.api-pill-error {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.api-banner {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  border-bottom: 1px solid #b2ddff;
+  background: #eff8ff;
+  color: #175cd3;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.api-banner-error {
+  border-bottom-color: #fecdca;
+  background: #fef3f2;
+  color: #b42318;
 }
 
 .page-body {

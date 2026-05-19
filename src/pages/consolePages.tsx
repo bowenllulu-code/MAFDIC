@@ -14,33 +14,22 @@ import { useMemo, useState } from "react";
 import { buildEmailPreview, buildReportPreview, buildScheduledTaskPreview } from "../actionPreviews";
 import { DataTable, MetricGrid, OperationQueue, PageHeader, StatusBadge, TextButton } from "../components/common";
 import { statusLabel } from "../constants";
+import type { ConsoleDataSnapshot } from "../adapters";
 import type { ActionPreview, AgentTask, ConfigItem, OperationRecord, PageId } from "../domain";
 import { formatMoney } from "../mockData";
-import { mockProvider } from "../mockProvider";
-
-const metrics = mockProvider.getMetrics();
-const customers = mockProvider.getCustomers();
-const orders = mockProvider.getOrders();
-const holdings = mockProvider.getHoldings();
-const risks = mockProvider.getRiskEvents();
-const opportunities = mockProvider.getOpportunities();
-const configs = mockProvider.getConfigItems();
-const tasks = mockProvider.getTasks();
-const assistantActions = mockProvider.getAssistantActions();
-const reportTemplates = mockProvider.getReportTemplates();
-const metricDefinitions = mockProvider.getMetricDefinitions();
-const opportunityAttributions = mockProvider.getOpportunityAttributions();
-const agentTasks = mockProvider.getAgentTasks();
 
 export function WorkspacePage({
+  data,
   jump,
   operationRecords,
   updateOperationStatus,
 }: {
+  data: ConsoleDataSnapshot;
   jump: (page: PageId) => void;
   operationRecords: OperationRecord[];
   updateOperationStatus: (id: string, status: OperationRecord["status"]) => void;
 }) {
+  const { assistantActions, metrics, tasks } = data;
   return (
     <>
       <PageHeader
@@ -98,6 +87,7 @@ export function WorkspacePage({
 }
 
 export function CustomersPage({
+  data,
   selectedCustomerId,
   setSelectedCustomerId,
   openOrder,
@@ -105,6 +95,7 @@ export function CustomersPage({
   openRisk,
   jump,
 }: {
+  data: ConsoleDataSnapshot;
   selectedCustomerId: string;
   setSelectedCustomerId: (id: string) => void;
   openOrder: (id: string) => void;
@@ -112,6 +103,7 @@ export function CustomersPage({
   openRisk: (id: string) => void;
   jump: (page: PageId) => void;
 }) {
+  const { customers, holdings, opportunities, orders, risks } = data;
   const [keyword, setKeyword] = useState("");
   const visibleCustomers = customers.filter((customer) =>
     `${customer.name}${customer.shortName}${customer.relationshipManager}${customer.tags.join("")}`.includes(keyword.trim()),
@@ -215,16 +207,19 @@ export function CustomersPage({
 }
 
 export function TransactionsPage({
+  data,
   selectedCustomerId,
   setSelectedCustomerId,
   openOrder,
   openCustomer,
 }: {
+  data: ConsoleDataSnapshot;
   selectedCustomerId: string;
   setSelectedCustomerId: (id: string) => void;
   openOrder: (id: string) => void;
   openCustomer: (id: string) => void;
 }) {
+  const { customers, orders } = data;
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<"全部" | "待确认" | "异常" | "已完成">("全部");
   const filteredOrders = orders.filter((order) => order.customerId === selectedCustomerId);
@@ -309,14 +304,17 @@ export function TransactionsPage({
 }
 
 export function RisksPage({
+  data,
   openRisk,
   openCustomer,
   openOrder,
 }: {
+  data: ConsoleDataSnapshot;
   openRisk: (id: string) => void;
   openCustomer: (id: string) => void;
   openOrder: (id: string) => void;
 }) {
+  const { risks } = data;
   const [severityFilter, setSeverityFilter] = useState<"全部" | "high" | "medium" | "low">("全部");
   const visibleRisks = risks.filter((risk) => severityFilter === "全部" || risk.severity === severityFilter);
   return (
@@ -365,14 +363,17 @@ export function RisksPage({
 }
 
 export function PerformancePage({
+  data,
   openCustomer,
   openOpportunity,
   createPreview,
 }: {
+  data: ConsoleDataSnapshot;
   openCustomer: (id: string) => void;
   openOpportunity: (id: string) => void;
   createPreview: (preview: ActionPreview) => void;
 }) {
+  const { customers, metricDefinitions, metrics, opportunities, reportTemplates } = data;
   const totalOpportunityRevenue = opportunities.reduce((sum, item) => sum + item.revenueContribution, 0);
   return (
     <>
@@ -459,20 +460,23 @@ export function PerformancePage({
 }
 
 export function ConfigsPage({
+  data,
   openConfig,
   openCustomer,
   createPreview,
 }: {
+  data: ConsoleDataSnapshot;
   openConfig: (id: string) => void;
   openCustomer: (id: string) => void;
   createPreview: (preview: ActionPreview) => void;
 }) {
+  const { configs, customers } = data;
   const [typeFilter, setTypeFilter] = useState<ConfigItem["type"] | "全部">("全部");
   const [drafts, setDrafts] = useState<ConfigItem[]>([]);
   const [draftType, setDraftType] = useState<ConfigItem["type"]>("垫资配置");
   const [draftCustomerId, setDraftCustomerId] = useState(customers[0].id);
   const [draftName, setDraftName] = useState("华北城投垫资额度临时调整");
-  const allConfigs = useMemo(() => [...drafts, ...configs], [drafts]);
+  const allConfigs = useMemo(() => [...drafts, ...configs], [configs, drafts]);
   const visibleConfigs = allConfigs.filter((config) => typeFilter === "全部" || config.type === typeFilter);
   const configTypes: Array<ConfigItem["type"] | "全部"> = ["全部", "垫资配置", "垫资行", "孳息规则", "费用规则", "风控规则"];
   const createDraft = () => {
@@ -602,14 +606,17 @@ export function ConfigsPage({
 }
 
 export function OpportunitiesPage({
+  data,
   openOpportunity,
   openCustomer,
   openOrder,
 }: {
+  data: ConsoleDataSnapshot;
   openOpportunity: (id: string) => void;
   openCustomer: (id: string) => void;
   openOrder: (id: string) => void;
 }) {
+  const { customers, opportunities, opportunityAttributions } = data;
   const totalExpected = opportunities.reduce((sum, opportunity) => sum + opportunity.expectedAmount, 0);
   const totalRevenue = opportunityAttributions.reduce((sum, attribution) => sum + attribution.revenueAmount, 0);
   const totalFee = opportunityAttributions.reduce((sum, attribution) => sum + attribution.feeAmount, 0);
@@ -688,16 +695,19 @@ export function OpportunitiesPage({
 }
 
 export function AssistantPage({
+  data,
   createPreview,
   operationRecords,
   updateOperationStatus,
   runtimeAgentTasks,
 }: {
+  data: ConsoleDataSnapshot;
   createPreview: (preview: ActionPreview) => void;
   operationRecords: OperationRecord[];
   updateOperationStatus: (id: string, status: OperationRecord["status"]) => void;
   runtimeAgentTasks: AgentTask[];
 }) {
+  const { agentTasks, assistantActions, risks } = data;
   const visibleAgentTasks = [...runtimeAgentTasks, ...agentTasks];
   const previewFromAction = (actionId: string) => {
     if (actionId === "A001") {

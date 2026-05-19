@@ -6,11 +6,14 @@ import {
   ChartNoAxesCombined,
   Gauge,
   Landmark,
+  RefreshCw,
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { snapshotFromProvider, type ConsoleDataSnapshot } from "./adapters";
 import { ActionPreviewModal, DetailDrawer } from "./components/overlays";
+import { mockApiClient } from "./mockApi";
 import { mockProvider } from "./mockProvider";
 import {
   AssistantPage,
@@ -24,7 +27,7 @@ import {
 } from "./pages/consolePages";
 import type { ActionPreview, AgentTask, DrawerState, OperationRecord, PageId } from "./domain";
 
-const customers = mockProvider.getCustomers();
+const initialData = snapshotFromProvider(mockProvider);
 
 const navigation: Array<{ id: PageId; label: string; icon: typeof Gauge }> = [
   { id: "workspace", label: "综合工作台", icon: Gauge },
@@ -39,12 +42,46 @@ const navigation: Array<{ id: PageId; label: string; icon: typeof Gauge }> = [
 
 function App() {
   const [activePage, setActivePage] = useState<PageId>("workspace");
-  const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0].id);
+  const [consoleData, setConsoleData] = useState<ConsoleDataSnapshot>(initialData);
+  const [apiState, setApiState] = useState<"loading" | "ready" | "error">("loading");
+  const [apiTrace, setApiTrace] = useState("mock-api 初始化中");
+  const [selectedCustomerId, setSelectedCustomerId] = useState(initialData.customers[0].id);
   const [drawer, setDrawer] = useState<DrawerState>(null);
   const [actionPreview, setActionPreview] = useState<ActionPreview | null>(null);
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
   const current = useMemo(() => navigation.find((item) => item.id === activePage), [activePage]);
+  const loadConsoleData = async () => {
+    setApiState("loading");
+    const response = await mockApiClient.getConsoleSnapshot();
+    if (response.ok) {
+      setConsoleData(response.data);
+      setApiState("ready");
+      setApiTrace(`${response.source} · ${response.traceId}`);
+      return;
+    }
+    setApiState("error");
+    setApiTrace(`${response.error.code} · ${response.error.message}`);
+  };
+
+  useEffect(() => {
+    let ignore = false;
+    void mockApiClient.getConsoleSnapshot().then((response) => {
+      if (ignore) return;
+      if (response.ok) {
+        setConsoleData(response.data);
+        setApiState("ready");
+        setApiTrace(`${response.source} · ${response.traceId}`);
+        return;
+      }
+      setApiState("error");
+      setApiTrace(`${response.error.code} · ${response.error.message}`);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   const jumpToCustomer = (customerId: string) => {
     setSelectedCustomerId(customerId);
     setActivePage("customers");
@@ -141,13 +178,18 @@ function App() {
             <strong>{current?.label}</strong>
           </div>
           <div className="topbar-actions">
+            <span className={`api-pill api-pill-${apiState}`}>{apiTrace}</span>
+            <button title="刷新 Mock API 数据" onClick={() => void loadConsoleData()}><RefreshCw size={18} /></button>
             <button title="全局搜索"><Search size={18} /></button>
             <button title="AI 助手" onClick={() => setActivePage("assistant")}><Bot size={18} /></button>
           </div>
         </header>
+        {apiState === "loading" ? <div className="api-banner">正在从 Mock API 拉取业务快照...</div> : null}
+        {apiState === "error" ? <div className="api-banner api-banner-error">Mock API 返回异常，当前保留上一份业务快照。</div> : null}
         <div className="page-body">
           {activePage === "workspace" && (
             <WorkspacePage
+              data={consoleData}
               jump={setActivePage}
               operationRecords={operationRecords}
               updateOperationStatus={updateOperationStatus}
@@ -155,6 +197,7 @@ function App() {
           )}
           {activePage === "customers" && (
             <CustomersPage
+              data={consoleData}
               selectedCustomerId={selectedCustomerId}
               setSelectedCustomerId={setSelectedCustomerId}
               openOrder={openOrder}
@@ -165,15 +208,17 @@ function App() {
           )}
           {activePage === "transactions" && (
             <TransactionsPage
+              data={consoleData}
               selectedCustomerId={selectedCustomerId}
               setSelectedCustomerId={setSelectedCustomerId}
               openOrder={openOrder}
               openCustomer={openCustomer}
             />
           )}
-          {activePage === "risks" && <RisksPage openRisk={openRisk} openCustomer={openCustomer} openOrder={openOrder} />}
+          {activePage === "risks" && <RisksPage data={consoleData} openRisk={openRisk} openCustomer={openCustomer} openOrder={openOrder} />}
           {activePage === "performance" && (
             <PerformancePage
+              data={consoleData}
               openCustomer={openCustomer}
               openOpportunity={openOpportunity}
               createPreview={setActionPreview}
@@ -181,14 +226,16 @@ function App() {
           )}
           {activePage === "configs" && (
             <ConfigsPage
+              data={consoleData}
               openConfig={openConfig}
               openCustomer={openCustomer}
               createPreview={setActionPreview}
             />
           )}
-          {activePage === "opportunities" && <OpportunitiesPage openOpportunity={openOpportunity} openCustomer={openCustomer} openOrder={openOrder} />}
+          {activePage === "opportunities" && <OpportunitiesPage data={consoleData} openOpportunity={openOpportunity} openCustomer={openCustomer} openOrder={openOrder} />}
           {activePage === "assistant" && (
             <AssistantPage
+              data={consoleData}
               createPreview={setActionPreview}
               operationRecords={operationRecords}
               updateOperationStatus={updateOperationStatus}
@@ -198,6 +245,7 @@ function App() {
         </div>
       </main>
       <DetailDrawer
+        data={consoleData}
         drawer={drawer}
         close={() => setDrawer(null)}
         jumpToCustomer={jumpToCustomer}

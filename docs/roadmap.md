@@ -96,7 +96,22 @@ Current frontend prototype coverage:
 - Configuration change workspace can create mock drafts and generate approval previews
 - Configuration approval path is visible as draft, rule validation, manual approval, and effective audit stages
 
-## Phase 7: Production Integration
+## Phase 7: Mock API Layer
+
+- Define unified API response and error envelope
+- Add a replaceable console API client
+- Move UI reads from static provider access to an API-backed data snapshot
+- Add mock latency, trace id, source marker, loading state, error state, and manual refresh
+- Keep mock provider available as the local data source behind the API client
+
+Current frontend prototype coverage:
+
+- `ConsoleDataSnapshot` represents the UI-facing data contract
+- `mockApiClient.getConsoleSnapshot()` returns a unified `ApiResponse`
+- App shell loads data through the mock API client and shows loading, source, trace id, and refresh controls
+- Console pages and detail drawer now consume the API-backed snapshot instead of direct static module constants
+
+## Phase 8: Production Integration
 
 - Connect external APIs for transaction records, fund market data, customer information, sales opportunities, holdings, revenue, and attribution inputs
 - Replace mock providers with API adapters

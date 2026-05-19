@@ -1,23 +1,19 @@
 import { X } from "lucide-react";
 import { buildEmailPreview } from "../actionPreviews";
+import type { ConsoleDataSnapshot } from "../adapters";
 import { statusLabel } from "../constants";
 import type { ActionPreview, ConfigItem, DrawerState, Opportunity, RiskEvent, TransactionOrder } from "../domain";
 import { formatMoney } from "../mockData";
-import { mockProvider } from "../mockProvider";
-
-const customers = mockProvider.getCustomers();
-const orders = mockProvider.getOrders();
-const risks = mockProvider.getRiskEvents();
-const opportunities = mockProvider.getOpportunities();
-const configs = mockProvider.getConfigItems();
 
 export function DetailDrawer({
+  data,
   drawer,
   close,
   jumpToCustomer,
   openOrder,
   createPreview,
 }: {
+  data: ConsoleDataSnapshot;
   drawer: DrawerState;
   close: () => void;
   jumpToCustomer: (id: string) => void;
@@ -25,6 +21,7 @@ export function DetailDrawer({
   createPreview: (preview: ActionPreview) => void;
 }) {
   if (!drawer) return null;
+  const { configs, customers, opportunities, orders, risks } = data;
 
   const renderOrder = (order: TransactionOrder) => {
     const customer = customers.find((item) => item.id === order.customerId);
