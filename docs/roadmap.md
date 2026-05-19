@@ -212,7 +212,24 @@ Current frontend prototype coverage:
 - Business performance page shows report safety boundaries
 - `docs/report-governance.md` defines report, export, scheduled push, and Report Agent boundaries
 
-## Phase 14: Production Integration
+## Phase 14: API Switching And Joint Testing Shell
+
+- Add API mode switch for mock, hybrid, and real modes
+- Add real API client placeholder that returns `REAL_API_NOT_CONFIGURED`
+- Add API client factory for mode-based client selection
+- Add source mode selector in the app shell
+- Add module-level switching plan in the integration readiness workspace
+- Document rollback and joint testing strategy
+
+Current frontend prototype coverage:
+
+- Top bar can switch between Mock, Hybrid, and Real data modes
+- Real mode fails safely with a configured error and keeps the previous snapshot
+- Hybrid mode is represented as a module-level switching plan while still using mock data
+- Integration readiness page shows switching condition and rollback strategy by module
+- `docs/api-switching-strategy.md` documents switching modes, rollout rules, rollback, and required environment inputs
+
+## Phase 15: Production Integration
 
 - Connect external APIs for transaction records, fund market data, customer information, sales opportunities, holdings, revenue, and attribution inputs
 - Replace mock providers with API adapters

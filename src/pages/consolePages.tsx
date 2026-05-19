@@ -15,7 +15,7 @@ import { useMemo, useState } from "react";
 import { buildEmailPreview, buildReportPreview, buildScheduledTaskPreview } from "../actionPreviews";
 import { DataTable, MetricGrid, OperationQueue, PageHeader, PermissionNotice, StatusBadge, TextButton } from "../components/common";
 import { statusLabel } from "../constants";
-import type { ConsoleDataSnapshot } from "../adapters";
+import type { ApiMode, ConsoleDataSnapshot } from "../adapters";
 import type { ActionPreview, AgentTask, ConfigItem, CurrentUser, OperationRecord, PageId } from "../domain";
 import { formatMoney } from "../mockData";
 import { can } from "../permissions";
@@ -994,13 +994,18 @@ export function AssistantPage({
   );
 }
 
-export function IntegrationPage({ data }: { data: ConsoleDataSnapshot }) {
+export function IntegrationPage({ apiMode, data }: { apiMode: ApiMode; data: ConsoleDataSnapshot }) {
   const { apiIntegrationModules, integrationChecklist, performanceStrategies } = data;
   const p0Modules = apiIntegrationModules.filter((item) => item.priority === "P0").length;
   const confirmedContracts = apiIntegrationModules.filter((item) => item.contractStatus === "已确认").length;
   const finishedMappings = apiIntegrationModules.filter((item) => item.mappingStatus === "已完成").length;
   const completedChecklist = integrationChecklist.filter((item) => item.status === "已完成").length;
   const highRiskModules = apiIntegrationModules.filter((item) => item.performanceRisk === "高").length;
+  const modeForModule = (priority: string) => {
+    if (apiMode === "real") return "Real";
+    if (apiMode === "hybrid") return priority === "P0" ? "Hybrid" : "Mock";
+    return "Mock";
+  };
 
   return (
     <>
@@ -1016,6 +1021,21 @@ export function IntegrationPage({ data }: { data: ConsoleDataSnapshot }) {
         <article className="metric-card"><span>高性能风险</span><strong>{highRiskModules}</strong><em className="metric-risk">需 BFF/预计算</em></article>
       </div>
       <div className="content-grid">
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>API 切换计划</h2>
+            <span className="status status-pending">{apiMode.toUpperCase()}</span>
+          </div>
+          <DataTable
+            columns={["模块", "当前模式", "切换条件", "回滚策略"]}
+            rows={apiIntegrationModules.map((module) => [
+              module.name,
+              modeForModule(module.priority),
+              module.priority === "P0" ? "样例响应、状态码、分页筛选、权限范围全部确认" : "P0 稳定后逐步切换",
+              "保留 Mock 快照，失败时回退到上一份数据并提示联调错误",
+            ])}
+          />
+        </section>
         <section className="panel span-12">
           <div className="panel-title">
             <h2>接口模块与映射状态</h2>

@@ -67,6 +67,8 @@ export type ConsoleDataSnapshot = {
   performanceStrategies: PerformanceStrategyItem[];
 };
 
+export type ApiMode = "mock" | "real" | "hybrid";
+
 export type ApiResponse<T> =
   | {
       ok: true;

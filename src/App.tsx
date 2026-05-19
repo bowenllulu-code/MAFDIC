@@ -11,10 +11,10 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { snapshotFromProvider, type ApiResponse, type ConsoleDataSnapshot } from "./adapters";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiModeLabel, createConsoleApiClient } from "./apiClientFactory";
+import { snapshotFromProvider, type ApiMode, type ApiResponse, type ConsoleDataSnapshot } from "./adapters";
 import { ActionPreviewModal, DetailDrawer } from "./components/overlays";
-import { mockApiClient } from "./mockApi";
 import { mockProvider } from "./mockProvider";
 import { buildUser, can, canView, roles } from "./permissions";
 import {
@@ -47,6 +47,7 @@ const navigation: Array<{ id: PageId; label: string; icon: typeof Gauge }> = [
 function App() {
   const [activePage, setActivePage] = useState<PageId>("workspace");
   const [selectedRole, setSelectedRole] = useState<UserRole>("系统管理员");
+  const [apiMode, setApiMode] = useState<ApiMode>("mock");
   const [consoleData, setConsoleData] = useState<ConsoleDataSnapshot>(initialData);
   const [apiState, setApiState] = useState<"loading" | "ready" | "error">("loading");
   const [apiTrace, setApiTrace] = useState("mock-api 初始化中");
@@ -57,7 +58,8 @@ function App() {
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
   const current = useMemo(() => navigation.find((item) => item.id === activePage), [activePage]);
   const currentUser = useMemo(() => buildUser(selectedRole), [selectedRole]);
-  const loadModularConsoleData = async (): Promise<ApiResponse<ConsoleDataSnapshot>> => {
+  const apiClient = useMemo(() => createConsoleApiClient(apiMode), [apiMode]);
+  const loadModularConsoleData = useCallback(async (): Promise<ApiResponse<ConsoleDataSnapshot>> => {
     const [
       metrics,
       customers,
@@ -80,26 +82,26 @@ function App() {
       integrationChecklist,
       performanceStrategies,
     ] = await Promise.all([
-      mockApiClient.listMetrics(),
-      mockApiClient.searchCustomers({ pageSize: 100 }),
-      mockApiClient.searchOrders({ pageSize: 100 }),
-      mockApiClient.searchHoldings({ pageSize: 100 }),
-      mockApiClient.searchRisks({ pageSize: 100 }),
-      mockApiClient.searchOpportunities({ pageSize: 100 }),
-      mockApiClient.searchConfigs({ pageSize: 100 }),
-      mockApiClient.searchTasks({ pageSize: 100 }),
-      mockApiClient.listAssistantActions(),
-      mockApiClient.listReportTemplates(),
-      mockApiClient.listReportGenerationRecords(),
-      mockApiClient.listScheduledReportTasks(),
-      mockApiClient.listMetricDefinitions(),
-      mockApiClient.listOpportunityAttributions(),
-      mockApiClient.listAgentTasks(),
-      mockApiClient.listAgentGovernanceRules(),
-      mockApiClient.listAgentAuditLogs(),
-      mockApiClient.listApiIntegrationModules(),
-      mockApiClient.listIntegrationChecklist(),
-      mockApiClient.listPerformanceStrategies(),
+      apiClient.listMetrics(),
+      apiClient.searchCustomers({ pageSize: 100 }),
+      apiClient.searchOrders({ pageSize: 100 }),
+      apiClient.searchHoldings({ pageSize: 100 }),
+      apiClient.searchRisks({ pageSize: 100 }),
+      apiClient.searchOpportunities({ pageSize: 100 }),
+      apiClient.searchConfigs({ pageSize: 100 }),
+      apiClient.searchTasks({ pageSize: 100 }),
+      apiClient.listAssistantActions(),
+      apiClient.listReportTemplates(),
+      apiClient.listReportGenerationRecords(),
+      apiClient.listScheduledReportTasks(),
+      apiClient.listMetricDefinitions(),
+      apiClient.listOpportunityAttributions(),
+      apiClient.listAgentTasks(),
+      apiClient.listAgentGovernanceRules(),
+      apiClient.listAgentAuditLogs(),
+      apiClient.listApiIntegrationModules(),
+      apiClient.listIntegrationChecklist(),
+      apiClient.listPerformanceStrategies(),
     ]);
     const responses = [
       metrics,
@@ -130,7 +132,7 @@ function App() {
     return {
       ok: true,
       traceId: customers.ok ? customers.traceId : "mock-api",
-      source: "mock-api" as const,
+      source: apiMode === "real" ? "real-api" : "mock-api",
       receivedAt: new Date().toISOString(),
       data: {
         metrics: metrics.ok ? metrics.data : [],
@@ -155,14 +157,14 @@ function App() {
         performanceStrategies: performanceStrategies.ok ? performanceStrategies.data : [],
       },
     };
-  };
+  }, [apiClient, apiMode]);
   const loadConsoleData = async () => {
     setApiState("loading");
     const response = await loadModularConsoleData();
     if (response.ok) {
       setConsoleData(response.data);
       setApiState("ready");
-      setApiTrace(`${response.source} modules · ${response.traceId}`);
+      setApiTrace(`${apiModeLabel(apiMode)} · ${response.traceId}`);
       return;
     }
     setApiState("error");
@@ -176,7 +178,7 @@ function App() {
       if (response.ok) {
         setConsoleData(response.data);
         setApiState("ready");
-        setApiTrace(`${response.source} modules · ${response.traceId}`);
+        setApiTrace(`${apiModeLabel(apiMode)} · ${response.traceId}`);
         return;
       }
       setApiState("error");
@@ -185,7 +187,7 @@ function App() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [loadModularConsoleData, apiMode]);
 
   const jumpToCustomer = (customerId: string) => {
     setSelectedCustomerId(customerId);
@@ -301,6 +303,14 @@ function App() {
                 {roles.map((role) => <option key={role}>{role}</option>)}
               </select>
             </div>
+            <div className="role-switcher">
+              <span>数据源</span>
+              <select value={apiMode} onChange={(event) => setApiMode(event.target.value as ApiMode)}>
+                <option value="mock">Mock</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="real">Real</option>
+              </select>
+            </div>
             <span className={`api-pill api-pill-${apiState}`}>{apiTrace}</span>
             <button title="刷新 Mock API 数据" onClick={() => void loadConsoleData()}><RefreshCw size={18} /></button>
             <button title="全局搜索"><Search size={18} /></button>
@@ -368,7 +378,7 @@ function App() {
               runtimeAgentTasks={agentTasks}
             />
           )}
-          {activePage === "integration" && <IntegrationPage data={consoleData} />}
+          {activePage === "integration" && <IntegrationPage apiMode={apiMode} data={consoleData} />}
         </div>
       </main>
       <DetailDrawer
