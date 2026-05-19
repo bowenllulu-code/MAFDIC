@@ -1,0 +1,422 @@
+import type {
+  AssistantAction,
+  ConfigItem,
+  Customer,
+  Holding,
+  Metric,
+  Opportunity,
+  RiskEvent,
+  Task,
+  TransactionOrder,
+  ReportTemplate,
+  MetricDefinition,
+  OpportunityAttribution,
+  AgentTask,
+} from "./domain";
+
+export const metrics: Metric[] = [
+  { label: "机构客户资产", value: "128.6 亿", change: "+4.8% 本月", tone: "good" },
+  { label: "本月交易金额", value: "21.4 亿", change: "+12.5% 环比", tone: "good" },
+  { label: "待确认交易", value: "18 笔", change: "6 笔超时", tone: "risk" },
+  { label: "商机归因收入", value: "842 万", change: "+9.1% 本季", tone: "neutral" },
+];
+
+export const customers: Customer[] = [
+  {
+    id: "C001",
+    name: "华北城投集团年金计划",
+    shortName: "华北城投",
+    riskLevel: "R3",
+    relationshipManager: "林越",
+    status: "active",
+    tags: ["重点机构", "年金", "稳健"],
+    totalAsset: 1860000000,
+    revenueYtd: 1260000,
+  },
+  {
+    id: "C002",
+    name: "东海保险资管专户",
+    shortName: "东海资管",
+    riskLevel: "R4",
+    relationshipManager: "周辰",
+    status: "warning",
+    tags: ["保险", "大额申购"],
+    totalAsset: 1420000000,
+    revenueYtd: 980000,
+  },
+  {
+    id: "C003",
+    name: "南方制造产业基金会",
+    shortName: "南方制造",
+    riskLevel: "R2",
+    relationshipManager: "陈静",
+    status: "active",
+    tags: ["公益", "低风险"],
+    totalAsset: 760000000,
+    revenueYtd: 420000,
+  },
+];
+
+export const orders: TransactionOrder[] = [
+  {
+    id: "T20260519001",
+    customerId: "C001",
+    fundName: "安信稳健收益混合",
+    tradeType: "申购",
+    applyDate: "2026-05-18",
+    amount: 86000000,
+    orderStatus: "active",
+    confirmationStatus: "pending",
+    channel: "机构直销",
+  },
+  {
+    id: "T20260517009",
+    customerId: "C002",
+    fundName: "华瑞货币增强",
+    tradeType: "赎回",
+    applyDate: "2026-05-17",
+    amount: 42000000,
+    orderStatus: "warning",
+    confirmationStatus: "warning",
+    channel: "代销渠道 A",
+  },
+  {
+    id: "T20260516012",
+    customerId: "C003",
+    fundName: "中证红利指数",
+    tradeType: "申购",
+    applyDate: "2026-05-16",
+    amount: 18000000,
+    orderStatus: "closed",
+    confirmationStatus: "closed",
+    channel: "机构直销",
+  },
+];
+
+export const holdings: Holding[] = [
+  {
+    id: "H001",
+    customerId: "C001",
+    fundName: "安信稳健收益混合",
+    shares: 72000000,
+    marketValue: 93400000,
+    profit: 2460000,
+    holdingDate: "2026-05-19",
+  },
+  {
+    id: "H002",
+    customerId: "C002",
+    fundName: "华瑞货币增强",
+    shares: 310000000,
+    marketValue: 311200000,
+    profit: 1200000,
+    holdingDate: "2026-05-19",
+  },
+  {
+    id: "H003",
+    customerId: "C003",
+    fundName: "中证红利指数",
+    shares: 12800000,
+    marketValue: 17650000,
+    profit: -320000,
+    holdingDate: "2026-05-19",
+  },
+];
+
+export const risks: RiskEvent[] = [
+  {
+    id: "R001",
+    title: "赎回确认超时",
+    severity: "high",
+    relatedCustomerId: "C002",
+    relatedOrderId: "T20260517009",
+    relatedCustomer: "东海保险资管专户",
+    triggeredRule: "T+1 未确认",
+    status: "warning",
+    detectedAt: "2026-05-19 09:12",
+    suggestion: "核对 TA 回执与申请单映射，优先联系清算岗复核。",
+  },
+  {
+    id: "R002",
+    title: "垫资额度接近上限",
+    severity: "medium",
+    relatedCustomerId: "C001",
+    relatedOrderId: "T20260519001",
+    relatedCustomer: "华北城投集团年金计划",
+    triggeredRule: "额度使用率 > 85%",
+    status: "pending",
+    detectedAt: "2026-05-19 10:30",
+    suggestion: "检查后续申购计划，必要时发起额度调整审批。",
+  },
+  {
+    id: "R003",
+    title: "基金净值波动提醒",
+    severity: "low",
+    relatedCustomerId: "C003",
+    relatedOrderId: "T20260516012",
+    relatedCustomer: "南方制造产业基金会",
+    triggeredRule: "单日净值波动 > 1.5%",
+    status: "active",
+    detectedAt: "2026-05-18 17:00",
+    suggestion: "在客户周报中补充行情解释。",
+  },
+];
+
+export const opportunities: Opportunity[] = [
+  {
+    id: "O001",
+    name: "华北城投固收增强配置",
+    customerId: "C001",
+    linkedOrderId: "T20260519001",
+    stage: "交易已落地",
+    expectedAmount: 120000000,
+    probability: 90,
+    owner: "林越",
+    revenueContribution: 368000,
+  },
+  {
+    id: "O002",
+    name: "东海资管现金管理方案",
+    customerId: "C002",
+    linkedOrderId: "T20260517009",
+    stage: "方案确认",
+    expectedAmount: 200000000,
+    probability: 70,
+    owner: "周辰",
+    revenueContribution: 0,
+  },
+  {
+    id: "O003",
+    name: "南方制造指数增强试点",
+    customerId: "C003",
+    linkedOrderId: "T20260516012",
+    stage: "投后跟踪",
+    expectedAmount: 30000000,
+    probability: 100,
+    owner: "陈静",
+    revenueContribution: 82000,
+  },
+];
+
+export const opportunityAttributions: OpportunityAttribution[] = [
+  {
+    id: "ATTR001",
+    opportunityId: "O001",
+    customerId: "C001",
+    orderId: "T20260519001",
+    revenueAmount: 420000,
+    feeAmount: 52000,
+    netContribution: 368000,
+    attributionRule: "商机关联交易 100% 归属",
+    attributionOwner: "林越",
+    confidence: 96,
+  },
+  {
+    id: "ATTR002",
+    opportunityId: "O002",
+    customerId: "C002",
+    orderId: "T20260517009",
+    revenueAmount: 0,
+    feeAmount: 0,
+    netContribution: 0,
+    attributionRule: "方案阶段，待交易落地",
+    attributionOwner: "周辰",
+    confidence: 72,
+  },
+  {
+    id: "ATTR003",
+    opportunityId: "O003",
+    customerId: "C003",
+    orderId: "T20260516012",
+    revenueAmount: 96000,
+    feeAmount: 14000,
+    netContribution: 82000,
+    attributionRule: "投后跟踪交易 80% 归属",
+    attributionOwner: "陈静",
+    confidence: 88,
+  },
+];
+
+export const configs: ConfigItem[] = [
+  {
+    id: "CFG001",
+    customerId: "C001",
+    type: "垫资配置",
+    name: "华北城投 T+1 垫资额度",
+    status: "active",
+    version: "v3",
+    approvalStatus: "已生效",
+    effectiveRange: "2026-01-01 至 2026-12-31",
+  },
+  {
+    id: "CFG002",
+    customerId: "C001",
+    type: "垫资行",
+    name: "招商银行上海分行",
+    status: "active",
+    version: "v1",
+    approvalStatus: "已生效",
+    effectiveRange: "长期",
+  },
+  {
+    id: "CFG003",
+    customerId: "C003",
+    type: "孳息规则",
+    name: "机构货币类产品孳息规则",
+    status: "draft",
+    version: "v2 草稿",
+    approvalStatus: "待提交",
+    effectiveRange: "2026-06-01 起",
+  },
+];
+
+export const tasks: Task[] = [
+  { id: "TASK001", title: "复核东海资管赎回确认差异", priority: "高", owner: "清算岗", dueAt: "今日 16:00", status: "warning" },
+  { id: "TASK002", title: "生成机构客户周度经营报表", priority: "中", owner: "运营岗", dueAt: "明日 09:00", status: "pending" },
+  { id: "TASK003", title: "检查孳息规则草稿影响范围", priority: "中", owner: "配置岗", dueAt: "周五", status: "pending" },
+];
+
+export const assistantActions: AssistantAction[] = [
+  {
+    id: "A001",
+    type: "异常解释",
+    title: "解释赎回确认超时",
+    description: "基于申请单、TA 回执和清算记录生成原因说明与处置建议。",
+    requiresApproval: false,
+  },
+  {
+    id: "A002",
+    type: "报表",
+    title: "生成机构客户周报",
+    description: "汇总资产、交易、收入、风险和商机进展，生成报表预览。",
+    requiresApproval: true,
+  },
+  {
+    id: "A003",
+    type: "定时任务",
+    title: "创建每日异常交易推送",
+    description: "每日 09:00 推送未确认和高风险交易摘要。",
+    requiresApproval: true,
+  },
+  {
+    id: "A004",
+    type: "邮件",
+    title: "草拟风险说明邮件",
+    description: "根据风险事件与处理建议生成给客户经理的邮件草稿。",
+    requiresApproval: true,
+  },
+  {
+    id: "A005",
+    type: "配置说明",
+    title: "生成孳息规则变更说明",
+    description: "解释草稿规则影响客户、产品和生效期。",
+    requiresApproval: true,
+  },
+];
+
+export const reportTemplates: ReportTemplate[] = [
+  {
+    id: "RPT001",
+    name: "机构客户周度经营报告",
+    reportType: "经营周报",
+    ownerRole: "运营负责人",
+    cadence: "每周一 09:00",
+    description: "汇总资产、交易、收入、风险和商机进展，面向管理者阅读。",
+  },
+  {
+    id: "RPT002",
+    name: "交易确认风险日报",
+    reportType: "风险日报",
+    ownerRole: "清算岗",
+    cadence: "每日 09:00",
+    description: "汇总未确认、确认超时、清算差异和高优先级处置建议。",
+  },
+  {
+    id: "RPT003",
+    name: "商机业绩归因报告",
+    reportType: "商机归因报告",
+    ownerRole: "机构销售管理",
+    cadence: "每月 3 日",
+    description: "输出商机、客户、关联交易、收入费用和业绩归因链路。",
+  },
+];
+
+export const metricDefinitions: MetricDefinition[] = [
+  {
+    id: "MET001",
+    name: "机构客户资产规模",
+    domain: "资产",
+    formula: "sum(holding.marketValue)",
+    owner: "运营数据岗",
+    updateFrequency: "每日",
+  },
+  {
+    id: "MET002",
+    name: "待确认交易笔数",
+    domain: "交易",
+    formula: "count(order where confirmationStatus in pending, warning)",
+    owner: "清算岗",
+    updateFrequency: "实时",
+  },
+  {
+    id: "MET003",
+    name: "商机归因收入",
+    domain: "商机",
+    formula: "sum(performanceAttribution.revenueAmount by opportunity)",
+    owner: "销售运营岗",
+    updateFrequency: "每日",
+  },
+  {
+    id: "MET004",
+    name: "风险闭环率",
+    domain: "风险",
+    formula: "closedRiskEvents / totalRiskEvents",
+    owner: "风险运营岗",
+    updateFrequency: "每日",
+  },
+];
+
+export const agentTasks: AgentTask[] = [
+  {
+    id: "AGT001",
+    agentName: "数据分析 Agent",
+    title: "解释华北城投资产变化",
+    context: "客户全景 / 华北城投",
+    status: "已完成",
+    riskLevel: "低",
+    lastUpdate: "刚刚",
+  },
+  {
+    id: "AGT002",
+    agentName: "报表 Agent",
+    title: "机构客户周度经营报告",
+    context: "经营分析 / 经营周报",
+    status: "待人审",
+    riskLevel: "中",
+    lastUpdate: "2 分钟前",
+  },
+  {
+    id: "AGT003",
+    agentName: "风险 Agent",
+    title: "赎回确认超时处理说明",
+    context: "风险异常 / 东海资管",
+    status: "待人审",
+    riskLevel: "中",
+    lastUpdate: "5 分钟前",
+  },
+  {
+    id: "AGT004",
+    agentName: "调度 Agent",
+    title: "每日异常交易推送任务",
+    context: "定时任务 / 09:00",
+    status: "待执行",
+    riskLevel: "高",
+    lastUpdate: "待确认",
+  },
+];
+
+export const formatMoney = (value: number) => {
+  if (Math.abs(value) >= 100000000) return `${(value / 100000000).toFixed(2)} 亿`;
+  if (Math.abs(value) >= 10000) return `${(value / 10000).toFixed(1)} 万`;
+  return value.toLocaleString("zh-CN");
+};

@@ -32,10 +32,36 @@ MAFDIC is intended to become an operational workbench rather than a single-purpo
 
 ## Repository Status
 
-This repository is at the initial planning stage. The first goal is to define the product scope, architecture, and development roadmap before implementing the first runnable version.
+This repository now contains the initial product documents and the first runnable React + TypeScript console prototype.
+
+## Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the local development server:
+
+```bash
+npm run dev
+```
+
+Run validation:
+
+```bash
+npm run build
+npm run lint
+```
 
 ## Documentation
 
+- [Product Solution](docs/product-solution.md)
 - [Product Blueprint](docs/product-blueprint.md)
 - [Architecture Draft](docs/architecture.md)
 - [Roadmap](docs/roadmap.md)
+- [MVP Plan](docs/mvp-plan.md)
+- [Information Architecture](docs/information-architecture.md)
+- [Domain Model Draft](docs/domain-model.md)
+- [API Adapter Contracts](docs/api-adapter-contracts.md)

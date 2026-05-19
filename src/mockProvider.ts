@@ -1,0 +1,32 @@
+import type { ConsoleDataProvider } from "./adapters";
+import {
+  assistantActions,
+  configs,
+  customers,
+  holdings,
+  metrics,
+  opportunities,
+  orders,
+  metricDefinitions,
+  agentTasks,
+  opportunityAttributions,
+  reportTemplates,
+  risks,
+  tasks,
+} from "./mockData";
+
+export const mockProvider: ConsoleDataProvider = {
+  getMetrics: () => metrics,
+  getCustomers: () => customers,
+  getOrders: () => orders,
+  getHoldings: () => holdings,
+  getRiskEvents: () => risks,
+  getOpportunities: () => opportunities,
+  getConfigItems: () => configs,
+  getTasks: () => tasks,
+  getAssistantActions: () => assistantActions,
+  getReportTemplates: () => reportTemplates,
+  getMetricDefinitions: () => metricDefinitions,
+  getOpportunityAttributions: () => opportunityAttributions,
+  getAgentTasks: () => agentTasks,
+};

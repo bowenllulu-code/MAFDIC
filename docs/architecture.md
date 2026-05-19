@@ -16,14 +16,19 @@ The web console is the primary interface for operations staff and managers.
 
 Expected areas:
 
-- Dashboard
-- Investor analytics
-- Transaction records
-- Fund holdings
-- Revenue analysis
-- Sales opportunities
-- Configuration center
-- Assistant workspace
+- Integrated workspace
+- Customer 360 view
+- Risk and exception dashboard
+- Business performance dashboard
+- AI assistant workspace
+- Customer and account center
+- Transaction and asset center
+- Confirmation and clearing center
+- Operational configuration center
+- Sales opportunity and performance attribution center
+- Task and case center
+- Approval and authorization center
+- Knowledge and quality inspection center
 - Task and report center
 
 ### Application API
@@ -35,6 +40,7 @@ Expected responsibilities:
 - Authentication and authorization
 - Query orchestration
 - Configuration command handling
+- Configuration versioning and audit
 - Report task creation
 - Assistant session management
 - Audit log access
@@ -47,7 +53,8 @@ The following business APIs are expected to be provided later by the business do
 - Fund market data
 - Customer and investor information
 - Sales opportunity information
-- Related business data required for revenue, holdings, and performance attribution
+- Holdings, revenue, fee, and attribution inputs
+- Risk events and confirmation or clearing details
 
 The first implementation should keep these integrations behind typed data-access boundaries. The web console can use mocked data with the same domain shape, and later replace the mock providers with real API clients.
 
@@ -66,12 +73,16 @@ Domain services own business rules and should stay independent from presentation
 Initial domains:
 
 - Investor operations
-- Advance funding configuration
-- Advance funding bank maintenance
-- Interest accrual configuration
-- Transactions and holdings
-- Revenue analytics
+- Customer and account management
+- Transaction and asset inquiry
+- Transaction confirmation and clearing
+- Risk and exception handling
+- Operational configuration, including advance funding, funding banks, interest accrual, and fee rules
+- Revenue analytics and performance attribution
 - Sales opportunities
+- Task and case workflows
+- Approval and authorization
+- Knowledge and quality inspection
 - Reporting
 - Agent task orchestration
 
@@ -84,9 +95,24 @@ The first version should use mocked data or local fixtures for source business d
 - Assistant conversations
 - Audit logs
 - Report definitions and generated report metadata
+- Metric definitions and report datasets owned by MAFDIC
 - Optional snapshots or caches derived from external source APIs
 
 External source systems should remain the authority for customer, transaction, fund market, opportunity, holding, and revenue source data unless a specific synchronization requirement is defined later.
+
+### Shared Capability Layer
+
+Shared capabilities should be implemented as reusable services or frontend/service boundaries, not as page-specific logic.
+
+Expected engines:
+
+- Workflow orchestration engine
+- Rule and configuration engine
+- Message and delivery engine
+- Search and knowledge engine
+- AI orchestration and decision-support engine
+- Task scheduling and reporting engine
+- Metric definition and governance
 
 ### Agent Layer
 
@@ -100,6 +126,10 @@ Candidate agents:
 - Email drafting and delivery agent
 - Configuration assistant agent
 - Anomaly detection agent
+- Risk explanation agent
+- Knowledge retrieval agent
+
+AI-generated actions that change configuration, create scheduled tasks, send external emails, close risk events, or export sensitive data must require human review before execution.
 
 ## Suggested Initial Tech Direction
 

@@ -20,6 +20,61 @@ Operations staff are responsible for daily configuration, data verification, rep
 
 Senior managers need high-level business visibility, trend analysis, revenue insight, opportunity conversion views, and timely alerts. They care less about raw workflows and more about decision-grade summaries.
 
+## Product Capability Layers
+
+### Unified Entry Layer
+
+- Integrated workspace
+- Customer 360 view
+- Risk and exception dashboard
+- Business performance dashboard
+- AI assistant workspace
+
+### Business Capability Layer
+
+- Customer and account center
+- Transaction and asset center
+- Transaction confirmation and clearing center
+- Risk and exception center
+- Operational configuration center
+- Sales opportunity and performance attribution center
+- Task and case center
+- Approval and authorization center
+- Knowledge and quality inspection center
+
+### Shared Capability Layer
+
+- Workflow orchestration engine
+- Rule and configuration engine
+- Message and delivery engine
+- Search and knowledge engine
+- AI orchestration and decision-support engine
+- Task scheduling and reporting engine
+- Metric definition and governance
+
+### Data And Integration Foundation
+
+- External business API adapter layer
+- Master data layer
+- Transaction fact layer
+- Asset fact layer
+- Operation fact layer
+- Event center
+- Document repository
+- Knowledge and experience repository
+- Metric and reporting datasets
+
+### Security And Governance Layer
+
+- Authentication and authorization
+- Role and data permissions
+- Approval traceability
+- AI behavior audit
+- Configuration version audit
+- Data lineage
+- Compliance risk control
+- Operation traceability
+
 ## Major Business Domains
 
 ### Data Statistics And Analysis
@@ -73,6 +128,23 @@ Senior managers need high-level business visibility, trend analysis, revenue ins
 - Linked transaction tracking
 - Post-transaction performance attribution
 
+### Operational Configuration
+
+- Investor advance funding configuration
+- Advance funding bank maintenance
+- Interest accrual configuration
+- Fee rule configuration
+- Effective period and version management
+- Configuration approval and audit history
+
+### Revenue And Performance Attribution
+
+- Revenue and fee records
+- Opportunity-linked transactions
+- Attribution rules
+- Performance results by customer, channel, product, and sales owner
+- Traceable path from opportunity to transaction to performance
+
 ### Intelligent Assistant
 
 The assistant should behave like an operational co-worker:
@@ -84,6 +156,8 @@ The assistant should behave like an operational co-worker:
 - Explain data changes
 - Surface anomalies and follow-up suggestions
 - Coordinate specialized agents for analysis, reporting, notification, and task execution
+
+The assistant should be implemented as an AI assistant workspace, not only a chat box. It should support analysis, task creation, report generation, email drafting, SOP recommendation, and human-reviewed execution.
 
 ## First Product Principle
 
@@ -98,7 +172,8 @@ The first runnable version should focus on:
 - Investor transaction and holding query pages
 - Revenue and opportunity analysis pages
 - Configuration management pages for advance funding, banks, and interest accrual
-- An assistant panel capable of conversational mock workflows
+- Sales opportunity and performance attribution views
+- An AI assistant workspace capable of conversational mock workflows, report generation previews, scheduled task previews, and email draft previews
 - A foundation that can later connect to real APIs, scheduled jobs, and agent orchestration
 
 ## External API Assumption
