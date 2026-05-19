@@ -127,6 +127,44 @@ export type ConfigItem = {
   effectiveRange: string;
   ownerRole?: string;
   changeReason?: string;
+  parameters?: Array<{ label: string; value: string }>;
+  validationResults?: ConfigValidationResult[];
+  approvalFlow?: ApprovalFlowNode[];
+  versions?: ConfigVersion[];
+  auditLogs?: ConfigAuditLog[];
+};
+
+export type ConfigValidationResult = {
+  id: string;
+  level: "通过" | "提醒" | "阻断";
+  title: string;
+  detail: string;
+};
+
+export type ApprovalFlowNode = {
+  id: string;
+  nodeName: string;
+  assignee: string;
+  status: "未开始" | "待处理" | "已通过" | "已驳回";
+  opinion: string;
+  handledAt?: string;
+};
+
+export type ConfigVersion = {
+  id: string;
+  version: string;
+  status: "当前生效" | "草稿" | "历史版本" | "可回滚";
+  changedBy: string;
+  changedAt: string;
+  summary: string;
+};
+
+export type ConfigAuditLog = {
+  id: string;
+  actor: string;
+  action: string;
+  at: string;
+  detail: string;
 };
 
 export type Task = {
@@ -153,6 +191,10 @@ export type ReportTemplate = {
   ownerRole: string;
   cadence: string;
   description: string;
+  sensitivity?: "内部" | "敏感" | "高敏";
+  metricVersion?: string;
+  dataSources?: string[];
+  requiresApproval?: boolean;
 };
 
 export type MetricDefinition = {
@@ -162,6 +204,32 @@ export type MetricDefinition = {
   formula: string;
   owner: string;
   updateFrequency: string;
+  version?: string;
+};
+
+export type ReportGenerationRecord = {
+  id: string;
+  templateId: string;
+  triggeredBy: string;
+  generatedAt: string;
+  status: "生成中" | "待审批" | "已完成" | "失败";
+  outputArtifact: string;
+  approvalStatus: "无需审批" | "待审批" | "已通过" | "已驳回";
+  deliveryStatus: "未推送" | "待推送" | "已推送" | "推送失败";
+  failureReason?: string;
+};
+
+export type ScheduledReportTask = {
+  id: string;
+  templateId: string;
+  cadence: string;
+  recipients: string[];
+  dataScope: string;
+  status: "启用" | "暂停" | "草稿";
+  lastRun: string;
+  nextRun: string;
+  lastResult: "成功" | "失败" | "待运行";
+  requiresApproval: boolean;
 };
 
 export type AgentTask = {
@@ -169,9 +237,37 @@ export type AgentTask = {
   agentName: "数据分析 Agent" | "报表 Agent" | "调度 Agent" | "邮件 Agent" | "配置 Agent" | "风险 Agent" | "知识 Agent";
   title: string;
   context: string;
-  status: "待执行" | "执行中" | "待人审" | "已完成";
+  status: "待执行" | "执行中" | "待人审" | "已完成" | "已暂停" | "已取消" | "执行失败";
   riskLevel: "低" | "中" | "高";
   lastUpdate: string;
+  inputSources?: string[];
+  executionSteps?: string[];
+  outputArtifacts?: string[];
+  humanReview?: "不需要" | "待审核" | "已通过" | "已驳回";
+};
+
+export type AgentGovernanceRule = {
+  id: string;
+  agentName: AgentTask["agentName"];
+  allowedActions: string[];
+  forbiddenActions: string[];
+  requiresHumanReview: boolean;
+  maxRiskLevel: "低" | "中" | "高";
+  dataSources: string[];
+  auditRequirement: string;
+};
+
+export type AgentAuditLog = {
+  id: string;
+  taskId: string;
+  agentName: AgentTask["agentName"];
+  triggeredBy: string;
+  action: string;
+  dataAccessed: string[];
+  output: string;
+  humanReviewStatus: "无需人审" | "待人审" | "已通过" | "已驳回";
+  externalEffect: "无" | "邮件草稿" | "定时任务草稿" | "配置草稿" | "报表草稿";
+  at: string;
 };
 
 export type ActionPreview = {
@@ -203,6 +299,20 @@ export type ApiIntegrationModule = {
   mockEndpoint: string;
   realEndpoint: string;
   blocker: string;
+  dataVolume: "小" | "中" | "大";
+  mappingLayer: "前端轻量" | "BFF 标准化" | "后端预计算";
+  queryPushdown: "必须" | "建议" | "可选";
+  cacheStrategy: "不缓存" | "字典缓存" | "短期缓存" | "物化快照";
+  performanceRisk: "低" | "中" | "高";
+};
+
+export type PerformanceStrategyItem = {
+  id: string;
+  scenario: string;
+  frontendBoundary: string;
+  bffResponsibility: string;
+  backendResponsibility: string;
+  risk: "低" | "中" | "高";
 };
 
 export type IntegrationChecklistItem = {

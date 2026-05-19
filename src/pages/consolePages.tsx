@@ -381,8 +381,11 @@ export function PerformancePage({
   openOpportunity: (id: string) => void;
   createPreview: (preview: ActionPreview) => void;
 }) {
-  const { customers, metricDefinitions, metrics, opportunities, reportTemplates } = data;
+  const { customers, metricDefinitions, metrics, opportunities, reportGenerationRecords, reportTemplates, scheduledReportTasks } = data;
   const totalOpportunityRevenue = opportunities.reduce((sum, item) => sum + item.revenueContribution, 0);
+  const pendingReportApprovals = reportGenerationRecords.filter((record) => record.approvalStatus === "待审批").length;
+  const activeSchedules = scheduledReportTasks.filter((task) => task.status === "启用").length;
+  const sensitiveTemplates = reportTemplates.filter((template) => template.sensitivity !== "内部").length;
   return (
     <>
       <PageHeader
@@ -391,6 +394,12 @@ export function PerformancePage({
         description="为管理者提供资产、交易、收入、费用、客户贡献和商机转化的可下钻视图。"
       />
       <MetricGrid metrics={metrics} />
+      <div className="metric-grid">
+        <article className="metric-card"><span>报表模板</span><strong>{reportTemplates.length}</strong><em className="metric-neutral">绑定指标口径</em></article>
+        <article className="metric-card"><span>待审批输出</span><strong>{pendingReportApprovals}</strong><em className="metric-risk">导出/推送需人审</em></article>
+        <article className="metric-card"><span>定时任务</span><strong>{activeSchedules}</strong><em className="metric-good">启用中</em></article>
+        <article className="metric-card"><span>敏感模板</span><strong>{sensitiveTemplates}</strong><em className="metric-risk">受控导出</em></article>
+      </div>
       <div className="operation-strip">
         <button onClick={() => createPreview(buildReportPreview())}>生成周报预览</button>
         <button onClick={() => createPreview(buildScheduledTaskPreview())}>创建定时推送预览</button>
@@ -428,7 +437,7 @@ export function PerformancePage({
         <section className="panel span-7">
           <div className="panel-title">
             <h2>报表模板</h2>
-            <span className="status status-draft">Phase 3</span>
+            <span className="status status-draft">Phase 13</span>
           </div>
           <div className="template-grid">
             {reportTemplates.map((template) => (
@@ -436,7 +445,7 @@ export function PerformancePage({
                 <span>{template.reportType} · {template.cadence}</span>
                 <strong>{template.name}</strong>
                 <p>{template.description}</p>
-                <em>负责人：{template.ownerRole}</em>
+                <em>负责人：{template.ownerRole} · {template.sensitivity} · {template.metricVersion}</em>
                 <button onClick={() => createPreview({
                   ...buildReportPreview(),
                   title: template.name,
@@ -458,9 +467,64 @@ export function PerformancePage({
               metric.name,
               metric.domain,
               metric.updateFrequency,
-              metric.owner,
+              `${metric.owner} · ${metric.version ?? "-"}`,
             ])}
           />
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>报表生成历史</h2>
+            <span className="status status-pending">输出治理</span>
+          </div>
+          <DataTable
+            columns={["报表", "触发人", "时间", "状态", "输出物", "审批", "推送", "失败原因"]}
+            rows={reportGenerationRecords.map((record) => {
+              const template = reportTemplates.find((item) => item.id === record.templateId);
+              return [
+                template?.name ?? record.templateId,
+                record.triggeredBy,
+                record.generatedAt,
+                record.status,
+                record.outputArtifact,
+                record.approvalStatus,
+                record.deliveryStatus,
+                record.failureReason ?? "-",
+              ];
+            })}
+          />
+        </section>
+        <section className="panel span-7">
+          <div className="panel-title">
+            <h2>定时推送任务</h2>
+            <span className="status status-pending">需人审启用</span>
+          </div>
+          <DataTable
+            columns={["模板", "周期", "收件范围", "数据范围", "状态", "上次", "下次", "审批"]}
+            rows={scheduledReportTasks.map((task) => {
+              const template = reportTemplates.find((item) => item.id === task.templateId);
+              return [
+                template?.name ?? task.templateId,
+                task.cadence,
+                task.recipients.join(" / "),
+                task.dataScope,
+                task.status,
+                `${task.lastRun} · ${task.lastResult}`,
+                task.nextRun,
+                task.requiresApproval ? "需要" : "不需要",
+              ];
+            })}
+          />
+        </section>
+        <section className="panel span-5">
+          <div className="panel-title">
+            <h2>报表安全边界</h2>
+            <span className="status status-warning">强制约束</span>
+          </div>
+          <div className="timeline">
+            <div><strong>敏感报表必须审批</strong><span>客户、交易、营收、归因相关报表默认进入待审批。</span></div>
+            <div><strong>定时任务先草稿</strong><span>AI 可创建任务草稿，但启用前需要人工确认收件人和范围。</span></div>
+            <div><strong>指标口径绑定版本</strong><span>每次生成报表都记录指标口径版本，避免同名指标口径漂移。</span></div>
+          </div>
         </section>
       </div>
     </>
@@ -490,6 +554,8 @@ export function ConfigsPage({
   const visibleConfigs = allConfigs.filter((config) => typeFilter === "全部" || config.type === typeFilter);
   const configTypes: Array<ConfigItem["type"] | "全部"> = ["全部", "垫资配置", "垫资行", "孳息规则", "费用规则", "风控规则"];
   const canEditConfig = can(user, "edit:config");
+  const blockedConfigs = allConfigs.filter((config) => config.validationResults?.some((item) => item.level === "阻断")).length;
+  const draftVersions = allConfigs.filter((config) => config.versions?.some((version) => version.status === "草稿")).length;
   const createDraft = () => {
     if (!canEditConfig) return;
     const draft: ConfigItem = {
@@ -503,6 +569,22 @@ export function ConfigsPage({
       effectiveRange: "2026-06-01 起",
       ownerRole: draftType === "垫资行" ? "资金岗" : draftType === "风控规则" ? "风险运营岗" : "配置岗",
       changeReason: "业务原型中创建的配置变更草稿",
+      parameters: [
+        { label: "字段来源", value: "原型草稿" },
+        { label: "后续处理", value: "待真实业务字段对齐" },
+      ],
+      validationResults: [
+        { id: `VAL-${Date.now()}`, level: "提醒", title: "字段待确认", detail: "该草稿字段为产品原型字段，后续需要与真实 API 或配置表结构映射。" },
+      ],
+      approvalFlow: [
+        { id: `APR-${Date.now()}`, nodeName: "配置提交", assignee: "配置岗", status: "待处理", opinion: "等待人工提交。" },
+      ],
+      versions: [
+        { id: `VER-${Date.now()}`, version: "v1 草稿", status: "草稿", changedBy: user.role, changedAt: "刚刚", summary: "通过配置变更工作台创建草稿。" },
+      ],
+      auditLogs: [
+        { id: `AUD-${Date.now()}`, actor: user.role, action: "创建草稿", at: "刚刚", detail: "创建配置草稿并生成审批说明。" },
+      ],
     };
     setDrafts((currentDrafts) => [draft, ...currentDrafts]);
     createPreview({
@@ -524,8 +606,8 @@ export function ConfigsPage({
       <div className="metric-grid">
         <article className="metric-card"><span>配置总数</span><strong>{allConfigs.length}</strong><em className="metric-neutral">含草稿 {drafts.length} 条</em></article>
         <article className="metric-card"><span>待审批</span><strong>{allConfigs.filter((config) => config.approvalStatus.includes("待")).length}</strong><em className="metric-risk">需人工确认</em></article>
-        <article className="metric-card"><span>已生效</span><strong>{allConfigs.filter((config) => config.status === "active").length}</strong><em className="metric-good">当前执行中</em></article>
-        <article className="metric-card"><span>覆盖能力</span><strong>5 类</strong><em className="metric-neutral">垫资/孳息/费用/风控</em></article>
+        <article className="metric-card"><span>校验阻断</span><strong>{blockedConfigs}</strong><em className="metric-risk">不可生效</em></article>
+        <article className="metric-card"><span>草稿版本</span><strong>{draftVersions}</strong><em className="metric-neutral">待治理</em></article>
       </div>
       <div className="content-grid">
         <section className="panel span-8">
@@ -608,15 +690,32 @@ export function ConfigsPage({
         </section>
         <section className="panel span-12">
           <div className="panel-title">
-            <h2>配置审批路径</h2>
-            <span className="status status-pending">Phase 6</span>
+            <h2>治理工作台</h2>
+            <span className="status status-pending">Phase 11</span>
           </div>
           <div className="process-lane">
-            <div><strong>草稿</strong><span>配置岗维护字段、范围和生效期</span></div>
-            <div><strong>规则校验</strong><span>检查额度、孳息、费用和风控冲突</span></div>
-            <div><strong>人工审批</strong><span>主管确认后进入待生效</span></div>
-            <div><strong>生效留痕</strong><span>记录版本、审批意见和影响对象</span></div>
+            <div><strong>字段治理</strong><span>配置字段先按领域模型设计，真实 API 到位后通过 BFF 或配置表映射。</span></div>
+            <div><strong>规则校验</strong><span>校验字段缺失、额度超限、生效期重叠、审批路径缺失。</span></div>
+            <div><strong>版本审批</strong><span>草稿、复核、审批、生效都保留版本和审批意见。</span></div>
+            <div><strong>回滚审计</strong><span>历史版本可形成回滚预览，所有操作进入审计记录。</span></div>
           </div>
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>配置治理明细</h2>
+            <ShieldCheck size={18} />
+          </div>
+          <DataTable
+            columns={["配置", "关键参数", "校验", "审批节点", "版本", "最近审计"]}
+            rows={visibleConfigs.map((config) => [
+              config.name,
+              config.parameters?.slice(0, 2).map((item) => `${item.label}: ${item.value}`).join(" / ") ?? "-",
+              config.validationResults?.map((item) => item.level).join(" / ") ?? "-",
+              config.approvalFlow?.map((node) => `${node.nodeName}:${node.status}`).join(" / ") ?? "-",
+              config.versions?.map((version) => `${version.version}:${version.status}`).join(" / ") ?? "-",
+              config.auditLogs?.[0]?.detail ?? "-",
+            ])}
+          />
         </section>
       </div>
     </>
@@ -727,8 +826,11 @@ export function AssistantPage({
   updateOperationStatus: (id: string, status: OperationRecord["status"]) => void;
   runtimeAgentTasks: AgentTask[];
 }) {
-  const { agentTasks, assistantActions, risks } = data;
+  const { agentAuditLogs, agentGovernanceRules, agentTasks, assistantActions, risks } = data;
   const visibleAgentTasks = [...runtimeAgentTasks, ...agentTasks];
+  const highRiskTasks = visibleAgentTasks.filter((task) => task.riskLevel === "高").length;
+  const pendingReviewTasks = visibleAgentTasks.filter((task) => task.humanReview === "待审核" || task.status === "待人审").length;
+  const externalDrafts = agentAuditLogs.filter((log) => log.externalEffect !== "无").length;
   const canExecuteAi = can(user, "execute:ai");
   const canApproveOperation = can(user, "approve:operation");
   const previewFromAction = (actionId: string) => {
@@ -763,6 +865,12 @@ export function AssistantPage({
         title="AI 助手"
         description="用 mock 工作流验证问答、分析、报表、定时任务、邮件和配置说明的人审模式。"
       />
+      <div className="metric-grid">
+        <article className="metric-card"><span>Agent 任务</span><strong>{visibleAgentTasks.length}</strong><em className="metric-neutral">含运行时任务</em></article>
+        <article className="metric-card"><span>待人审</span><strong>{pendingReviewTasks}</strong><em className="metric-risk">需人工确认</em></article>
+        <article className="metric-card"><span>高风险任务</span><strong>{highRiskTasks}</strong><em className="metric-risk">不可自动执行</em></article>
+        <article className="metric-card"><span>外部草稿</span><strong>{externalDrafts}</strong><em className="metric-neutral">无直接外发</em></article>
+      </div>
       <div className="content-grid">
         <section className="panel span-5">
           <div className="panel-title">
@@ -820,16 +928,66 @@ export function AssistantPage({
             <span className="status status-pending">Phase 4</span>
           </div>
           <DataTable
-            columns={["Agent", "任务", "上下文", "状态", "风险", "更新"]}
+            columns={["Agent", "任务", "上下文", "状态", "风险", "人审", "输出物"]}
             rows={visibleAgentTasks.map((task) => [
               task.agentName,
               task.title,
               task.context,
               task.status,
               task.riskLevel,
-              task.lastUpdate,
+              task.humanReview ?? "-",
+              task.outputArtifacts?.join(" / ") ?? "-",
             ])}
           />
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>Agent 治理边界</h2>
+            <span className="status status-pending">Phase 12</span>
+          </div>
+          <DataTable
+            columns={["Agent", "允许动作", "禁止动作", "人审", "最高风险", "数据源", "审计要求"]}
+            rows={agentGovernanceRules.map((rule) => [
+              rule.agentName,
+              rule.allowedActions.join(" / "),
+              rule.forbiddenActions.join(" / "),
+              rule.requiresHumanReview ? "必须" : "按风险",
+              <span className={`priority priority-${rule.maxRiskLevel === "高" ? "高" : rule.maxRiskLevel === "中" ? "中" : "低"}`}>{rule.maxRiskLevel}</span>,
+              rule.dataSources.join(" / "),
+              rule.auditRequirement,
+            ])}
+          />
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>Agent 审计记录</h2>
+            <ShieldCheck size={18} />
+          </div>
+          <DataTable
+            columns={["时间", "触发人", "Agent", "动作", "访问数据", "输出", "人审", "外部影响"]}
+            rows={agentAuditLogs.map((log) => [
+              log.at,
+              log.triggeredBy,
+              log.agentName,
+              log.action,
+              log.dataAccessed.join(" / "),
+              log.output,
+              log.humanReviewStatus,
+              log.externalEffect,
+            ])}
+          />
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>AI 安全边界</h2>
+            <span className="status status-warning">强制约束</span>
+          </div>
+          <div className="process-lane">
+            <div><strong>只生成草稿</strong><span>报表、邮件、配置、定时任务都先进入草稿或待确认队列。</span></div>
+            <div><strong>不绕过审批</strong><span>配置生效、风险关闭、外部发送必须由人工确认。</span></div>
+            <div><strong>记录数据来源</strong><span>每个 Agent 任务保留输入数据范围和输出物版本。</span></div>
+            <div><strong>高风险人审</strong><span>高风险或外部影响动作默认进入待人审状态。</span></div>
+          </div>
         </section>
       </div>
     </>
@@ -837,11 +995,12 @@ export function AssistantPage({
 }
 
 export function IntegrationPage({ data }: { data: ConsoleDataSnapshot }) {
-  const { apiIntegrationModules, integrationChecklist } = data;
+  const { apiIntegrationModules, integrationChecklist, performanceStrategies } = data;
   const p0Modules = apiIntegrationModules.filter((item) => item.priority === "P0").length;
   const confirmedContracts = apiIntegrationModules.filter((item) => item.contractStatus === "已确认").length;
   const finishedMappings = apiIntegrationModules.filter((item) => item.mappingStatus === "已完成").length;
   const completedChecklist = integrationChecklist.filter((item) => item.status === "已完成").length;
+  const highRiskModules = apiIntegrationModules.filter((item) => item.performanceRisk === "高").length;
 
   return (
     <>
@@ -854,7 +1013,7 @@ export function IntegrationPage({ data }: { data: ConsoleDataSnapshot }) {
         <article className="metric-card"><span>P0 接口模块</span><strong>{p0Modules}</strong><em className="metric-risk">优先联调</em></article>
         <article className="metric-card"><span>契约已确认</span><strong>{confirmedContracts}</strong><em className="metric-neutral">共 {apiIntegrationModules.length} 个模块</em></article>
         <article className="metric-card"><span>字段映射完成</span><strong>{finishedMappings}</strong><em className="metric-neutral">等待真实样例</em></article>
-        <article className="metric-card"><span>清单完成项</span><strong>{completedChecklist}</strong><em className="metric-neutral">共 {integrationChecklist.length} 项</em></article>
+        <article className="metric-card"><span>高性能风险</span><strong>{highRiskModules}</strong><em className="metric-risk">需 BFF/预计算</em></article>
       </div>
       <div className="content-grid">
         <section className="panel span-12">
@@ -863,23 +1022,39 @@ export function IntegrationPage({ data }: { data: ConsoleDataSnapshot }) {
             <PlugZap size={18} />
           </div>
           <DataTable
-            columns={["优先级", "模块", "负责方", "契约", "字段映射", "Mock 方法", "真实接口", "阻塞点"]}
+            columns={["优先级", "模块", "负责方", "数据量", "映射层", "查询下推", "缓存", "性能风险"]}
             rows={apiIntegrationModules.map((module) => [
               <span className={`priority priority-${module.priority === "P0" ? "高" : module.priority === "P1" ? "中" : "低"}`}>{module.priority}</span>,
               module.name,
               module.owner,
-              module.contractStatus,
-              module.mappingStatus,
-              module.mockEndpoint,
-              module.realEndpoint,
-              module.blocker,
+              module.dataVolume,
+              module.mappingLayer,
+              module.queryPushdown,
+              module.cacheStrategy,
+              <span className={`priority priority-${module.performanceRisk === "高" ? "高" : module.performanceRisk === "中" ? "中" : "低"}`}>{module.performanceRisk}</span>,
+            ])}
+          />
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>BFF 性能边界</h2>
+            <span className="status status-pending">Phase 10</span>
+          </div>
+          <DataTable
+            columns={["场景", "前端边界", "BFF 职责", "后端职责", "风险"]}
+            rows={performanceStrategies.map((item) => [
+              item.scenario,
+              item.frontendBoundary,
+              item.bffResponsibility,
+              item.backendResponsibility,
+              <span className={`priority priority-${item.risk === "高" ? "高" : item.risk === "中" ? "中" : "低"}`}>{item.risk}</span>,
             ])}
           />
         </section>
         <section className="panel span-7">
           <div className="panel-title">
             <h2>接入验收清单</h2>
-            <ClipboardList size={18} />
+            <span className="status status-draft">完成 {completedChecklist}/{integrationChecklist.length}</span>
           </div>
           <DataTable
             columns={["类别", "事项", "负责人", "状态"]}
@@ -897,9 +1072,9 @@ export function IntegrationPage({ data }: { data: ConsoleDataSnapshot }) {
             <span className="status status-pending">Phase 9</span>
           </div>
           <div className="timeline">
-            <div><strong>第一批 P0</strong><span>客户与账户、交易与确认、运营配置，先保证核心查询和配置闭环。</span></div>
-            <div><strong>第二批 P1</strong><span>持仓行情、商机归因，用于经营分析和业绩解释。</span></div>
-            <div><strong>第三批 P2</strong><span>Agent、报表、定时任务，在权限和审计边界确认后接入。</span></div>
+            <div><strong>轻量映射留前端</strong><span>只保留字段改名、状态展示、空值兜底和当前页渲染。</span></div>
+            <div><strong>重映射进 BFF</strong><span>分页、筛选、权限、状态归一、多接口聚合和缓存由 BFF 承担。</span></div>
+            <div><strong>高成本计算异步化</strong><span>归因、报表、资产解释等高成本场景使用预计算或物化快照。</span></div>
           </div>
         </section>
       </div>

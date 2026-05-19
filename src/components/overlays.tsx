@@ -150,8 +150,56 @@ export function DetailDrawer({
           <h3>变更影响预览</h3>
           <p>该配置影响 {customer?.shortName ?? "通用客户范围"}，生效期为 {config.effectiveRange}。提交前应校验额度、日期、规则冲突和审批路径。</p>
         </div>
+        <div className="drawer-section">
+          <h3>关键字段</h3>
+          <div className="drawer-facts">
+            {(config.parameters ?? []).slice(0, 4).map((item) => (
+              <div key={item.label}><span>{item.label}</span><strong>{item.value}</strong></div>
+            ))}
+          </div>
+        </div>
+        <div className="drawer-section">
+          <h3>校验结果</h3>
+          <div className="detail-stack">
+            {(config.validationResults ?? []).map((item) => (
+              <span key={item.id}><strong>{item.level}</strong> · {item.title}：{item.detail}</span>
+            ))}
+          </div>
+        </div>
+        <div className="drawer-section">
+          <h3>审批流</h3>
+          <div className="timeline compact">
+            {(config.approvalFlow ?? []).map((node) => (
+              <div key={node.id}><strong>{node.nodeName} · {node.status}</strong><span>{node.assignee} · {node.opinion}{node.handledAt ? ` · ${node.handledAt}` : ""}</span></div>
+            ))}
+          </div>
+        </div>
+        <div className="drawer-section">
+          <h3>版本治理</h3>
+          <div className="timeline compact">
+            {(config.versions ?? []).map((version) => (
+              <div key={version.id}><strong>{version.version} · {version.status}</strong><span>{version.changedBy} · {version.changedAt} · {version.summary}</span></div>
+            ))}
+          </div>
+        </div>
+        <div className="drawer-section">
+          <h3>审计记录</h3>
+          <div className="detail-stack">
+            {(config.auditLogs ?? []).map((log) => (
+              <span key={log.id}>{log.at} · {log.actor} · {log.action}：{log.detail}</span>
+            ))}
+          </div>
+        </div>
         <div className="drawer-actions">
           {config.customerId ? <button onClick={() => jumpToCustomer(config.customerId as string)}>打开客户全景</button> : null}
+          <button onClick={() => createPreview({
+            type: "审批说明",
+            title: `${config.name}版本回滚预览`,
+            context: `${config.type} / ${config.version}`,
+            summary: `当前配置包含 ${config.versions?.length ?? 0} 个版本。回滚前需要确认历史版本字段、影响客户和审批链路，不会自动生效。`,
+            steps: ["读取当前版本和可回滚版本", "对比关键字段和生效范围", "生成回滚审批说明，等待人工确认"],
+            requiresApproval: true,
+          })}>生成回滚预览</button>
           <button onClick={() => createPreview({
             type: "审批说明",
             title: `${config.name}审批说明`,

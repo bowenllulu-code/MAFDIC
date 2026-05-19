@@ -148,7 +148,71 @@ Current frontend prototype coverage:
 - Integration checklist shows category, owner, and readiness status
 - Dashboard metrics summarize P0 modules, contract confirmation, mapping completion, and checklist completion
 
-## Phase 10: Production Integration
+## Phase 10: BFF Adapter And Performance Strategy
+
+- Define frontend lightweight mapping versus BFF/backend heavy mapping boundaries
+- Add performance risk attributes to each API integration module
+- Track data volume, mapping layer, query pushdown, cache strategy, and performance risk
+- Add BFF performance boundary view to the integration readiness workspace
+- Document query, cache, materialized snapshot, and async computation principles
+
+Current frontend prototype coverage:
+
+- Integration readiness page shows performance risk for each API module
+- Integration readiness page shows BFF responsibility and frontend boundary per scenario
+- `docs/integration-performance-strategy.md` describes mapping boundaries, query rules, cache rules, and real API acceptance criteria
+- Architecture document now includes BFF/backend adapter responsibilities
+
+## Phase 11: Configuration Approval And Version Governance
+
+- Deepen configuration data fields for advance funding, funding bank, interest accrual, fee rules, and risk rules
+- Add validation results with pass, warning, and blocking levels
+- Add approval flow nodes, assignees, opinions, and timestamps
+- Add configuration version records and rollback preview entry points
+- Add configuration audit logs
+- Keep AI configuration assistant in preview-and-explain mode only
+
+Current frontend prototype coverage:
+
+- Operational configuration page shows validation blockers and draft versions
+- Configuration governance detail table shows parameters, validation, approval, versions, and latest audit
+- Configuration detail drawer shows key fields, validation results, approval flow, version history, and audit records
+- Configuration detail drawer can generate approval explanation and rollback preview drafts
+- `docs/config-governance.md` defines lifecycle, validation, versioning, and AI boundaries
+
+## Phase 12: Agent Governance And Execution Audit
+
+- Define agent governance rules for allowed actions, forbidden actions, data sources, risk, and review requirements
+- Extend agent tasks with input sources, execution steps, output artifacts, and human-review status
+- Add agent audit logs with trigger user, accessed data, output, review status, and external effect
+- Add AI safety boundary to prevent automatic external effects
+- Keep high-risk Agent actions in human-reviewed draft mode
+
+Current frontend prototype coverage:
+
+- AI assistant page shows Agent task, pending review, high-risk task, and external-draft metrics
+- AI assistant page shows Agent governance boundaries
+- AI assistant page shows Agent audit records
+- AI assistant page shows explicit AI safety constraints
+- `docs/agent-governance.md` defines governance rules, audit records, and safety boundaries
+
+## Phase 13: Report And Scheduled Task Governance
+
+- Add report template governance fields, including sensitivity, data sources, approval requirement, and metric version
+- Add report generation records with output artifact, approval, delivery, and failure state
+- Add scheduled report tasks with recipients, data scope, status, and next run
+- Bind report output to metric definition versions
+- Keep Report Agent in preview and draft mode for sensitive outputs
+
+Current frontend prototype coverage:
+
+- Business performance page shows report governance metrics
+- Business performance page shows report generation history
+- Business performance page shows scheduled report tasks
+- Business performance page shows report safety boundaries
+- `docs/report-governance.md` defines report, export, scheduled push, and Report Agent boundaries
+
+## Phase 14: Production Integration
 
 - Connect external APIs for transaction records, fund market data, customer information, sales opportunities, holdings, revenue, and attribution inputs
 - Replace mock providers with API adapters

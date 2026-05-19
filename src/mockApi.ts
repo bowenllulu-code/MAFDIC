@@ -145,6 +145,12 @@ export const mockApiClient: ConsoleApiClient = {
   async listReportTemplates() {
     return endpoint(source.reportTemplates);
   },
+  async listReportGenerationRecords() {
+    return endpoint(source.reportGenerationRecords);
+  },
+  async listScheduledReportTasks() {
+    return endpoint(source.scheduledReportTasks);
+  },
   async listMetricDefinitions() {
     return endpoint(source.metricDefinitions);
   },
@@ -154,10 +160,19 @@ export const mockApiClient: ConsoleApiClient = {
   async listAgentTasks() {
     return endpoint(source.agentTasks);
   },
+  async listAgentGovernanceRules() {
+    return endpoint(source.agentGovernanceRules);
+  },
+  async listAgentAuditLogs() {
+    return endpoint(source.agentAuditLogs);
+  },
   async listApiIntegrationModules() {
     return endpoint(source.apiIntegrationModules);
   },
   async listIntegrationChecklist() {
     return endpoint(source.integrationChecklist);
+  },
+  async listPerformanceStrategies() {
+    return endpoint(source.performanceStrategies);
   },
 };

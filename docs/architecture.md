@@ -45,6 +45,22 @@ Expected responsibilities:
 - Assistant session management
 - Audit log access
 
+### BFF And Backend Adapter Layer
+
+MAFDIC should not rely on heavy frontend-only field mapping when real APIs arrive. The web console can keep a lightweight adapter for presentation details, but source-system normalization, permission filtering, pagination, aggregation, and caching should live in a BFF or backend adapter layer.
+
+Expected responsibilities:
+
+- Normalize external API response fields into MAFDIC domain DTOs
+- Push down pagination, filtering, sorting, date ranges, customer scope, and status filters
+- Apply role and data-scope permissions close to the data source
+- Preserve source system, source id, trace id, and data freshness metadata
+- Cache stable dictionaries and short-lived operational lists
+- Use materialized snapshots or async jobs for attribution, reports, and heavy analytics
+- Return stable response and error envelopes to the web console and agent workflows
+
+The frontend should only handle lightweight display mapping such as label conversion, empty-state fallback, and current-page formatting.
+
 ### External Business API Adapters
 
 The following business APIs are expected to be provided later by the business domain owner:
@@ -58,13 +74,12 @@ The following business APIs are expected to be provided later by the business do
 
 The first implementation should keep these integrations behind typed data-access boundaries. The web console can use mocked data with the same domain shape, and later replace the mock providers with real API clients.
 
-Adapter responsibilities:
+External adapter responsibilities:
 
-- Normalize external API response fields into MAFDIC domain models
 - Hide source-specific pagination, filtering, and error formats
 - Preserve raw source identifiers for traceability
-- Provide stable query methods for UI and agent workflows
-- Keep room for caching, permission filtering, and audit logging
+- Provide stable query methods for BFF query services
+- Avoid pushing high-volume joins, aggregation, or attribution calculation into the browser
 
 ### Domain Services
 

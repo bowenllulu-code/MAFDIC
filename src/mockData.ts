@@ -9,11 +9,16 @@ import type {
   Task,
   TransactionOrder,
   ReportTemplate,
+  ReportGenerationRecord,
+  ScheduledReportTask,
   MetricDefinition,
   OpportunityAttribution,
   AgentTask,
+  AgentAuditLog,
+  AgentGovernanceRule,
   ApiIntegrationModule,
   IntegrationChecklistItem,
+  PerformanceStrategyItem,
 } from "./domain";
 
 export const metrics: Metric[] = [
@@ -251,6 +256,30 @@ export const configs: ConfigItem[] = [
     effectiveRange: "2026-01-01 至 2026-12-31",
     ownerRole: "配置岗",
     changeReason: "年度额度续期",
+    parameters: [
+      { label: "垫资额度", value: "1.2 亿" },
+      { label: "单笔上限", value: "5000 万" },
+      { label: "适用交易", value: "机构申购 T+1 未确认" },
+      { label: "预警阈值", value: "85%" },
+    ],
+    validationResults: [
+      { id: "VAL001", level: "通过", title: "额度范围", detail: "额度未超过客户授信上限。" },
+      { id: "VAL002", level: "提醒", title: "生效期重叠", detail: "与 v2 生效期存在 1 天重叠，已按 v3 优先。" },
+    ],
+    approvalFlow: [
+      { id: "APR001", nodeName: "配置提交", assignee: "配置岗", status: "已通过", opinion: "年度续期字段完整。", handledAt: "2025-12-20 10:12" },
+      { id: "APR002", nodeName: "运营复核", assignee: "运营主管", status: "已通过", opinion: "同意续期。", handledAt: "2025-12-21 14:30" },
+      { id: "APR003", nodeName: "生效确认", assignee: "系统", status: "已通过", opinion: "2026-01-01 自动生效。", handledAt: "2026-01-01 00:00" },
+    ],
+    versions: [
+      { id: "VER001", version: "v3", status: "当前生效", changedBy: "配置岗", changedAt: "2025-12-20", summary: "年度续期，额度保持 1.2 亿。" },
+      { id: "VER002", version: "v2", status: "可回滚", changedBy: "配置岗", changedAt: "2025-06-01", summary: "额度 1.0 亿，预警阈值 80%。" },
+    ],
+    auditLogs: [
+      { id: "AUD001", actor: "配置岗", action: "提交审批", at: "2025-12-20 10:12", detail: "提交 v3 年度续期。" },
+      { id: "AUD002", actor: "运营主管", action: "审批通过", at: "2025-12-21 14:30", detail: "确认额度与客户范围。" },
+      { id: "AUD003", actor: "系统", action: "配置生效", at: "2026-01-01 00:00", detail: "v3 自动切换为当前版本。" },
+    ],
   },
   {
     id: "CFG002",
@@ -263,6 +292,26 @@ export const configs: ConfigItem[] = [
     effectiveRange: "长期",
     ownerRole: "资金岗",
     changeReason: "主垫资行维护",
+    parameters: [
+      { label: "开户行", value: "招商银行上海分行" },
+      { label: "清算账户", value: "6225 **** 1098" },
+      { label: "支持币种", value: "人民币" },
+      { label: "状态巡检", value: "每日 08:30" },
+    ],
+    validationResults: [
+      { id: "VAL003", level: "通过", title: "账户状态", detail: "垫资行账户状态可用。" },
+      { id: "VAL004", level: "通过", title: "清算路由", detail: "已配置清算路由和对账关系。" },
+    ],
+    approvalFlow: [
+      { id: "APR004", nodeName: "资金维护", assignee: "资金岗", status: "已通过", opinion: "资料完整。", handledAt: "2026-01-02 11:00" },
+      { id: "APR005", nodeName: "运营复核", assignee: "运营主管", status: "已通过", opinion: "同意维护为主垫资行。", handledAt: "2026-01-02 15:20" },
+    ],
+    versions: [
+      { id: "VER003", version: "v1", status: "当前生效", changedBy: "资金岗", changedAt: "2026-01-02", summary: "新增招商银行上海分行为主垫资行。" },
+    ],
+    auditLogs: [
+      { id: "AUD004", actor: "资金岗", action: "新增垫资行", at: "2026-01-02 11:00", detail: "维护账户和清算路由。" },
+    ],
   },
   {
     id: "CFG003",
@@ -275,6 +324,29 @@ export const configs: ConfigItem[] = [
     effectiveRange: "2026-06-01 起",
     ownerRole: "配置岗",
     changeReason: "调整节假日孳息计算口径",
+    parameters: [
+      { label: "计算口径", value: "自然日逐日计提" },
+      { label: "节假日处理", value: "顺延至下一工作日入账" },
+      { label: "适用产品", value: "机构货币类产品" },
+      { label: "小数精度", value: "保留 4 位" },
+    ],
+    validationResults: [
+      { id: "VAL005", level: "提醒", title: "影响范围", detail: "将影响 3 个机构客户和 2 只货币类产品。" },
+      { id: "VAL006", level: "阻断", title: "审批路径", detail: "缺少财务复核节点，暂不能生效。" },
+    ],
+    approvalFlow: [
+      { id: "APR006", nodeName: "配置提交", assignee: "配置岗", status: "待处理", opinion: "等待补充财务复核节点。" },
+      { id: "APR007", nodeName: "财务复核", assignee: "财务岗", status: "未开始", opinion: "待确认。" },
+      { id: "APR008", nodeName: "运营审批", assignee: "运营主管", status: "未开始", opinion: "待确认。" },
+    ],
+    versions: [
+      { id: "VER004", version: "v2 草稿", status: "草稿", changedBy: "配置岗", changedAt: "2026-05-19", summary: "调整节假日孳息入账口径。" },
+      { id: "VER005", version: "v1", status: "当前生效", changedBy: "配置岗", changedAt: "2025-10-01", summary: "工作日计提，节假日不单独入账。" },
+    ],
+    auditLogs: [
+      { id: "AUD005", actor: "配置岗", action: "创建草稿", at: "2026-05-19 10:08", detail: "创建 v2 草稿并触发影响范围检查。" },
+      { id: "AUD006", actor: "规则引擎", action: "校验阻断", at: "2026-05-19 10:09", detail: "发现缺少财务复核节点。" },
+    ],
   },
   {
     id: "CFG004",
@@ -287,6 +359,23 @@ export const configs: ConfigItem[] = [
     effectiveRange: "2026-06-15 起",
     ownerRole: "销售运营岗",
     changeReason: "匹配新渠道费率协议",
+    parameters: [
+      { label: "渠道", value: "代销渠道 A" },
+      { label: "销售服务费", value: "0.25%/年" },
+      { label: "分摊方式", value: "按日计提，月末结算" },
+    ],
+    validationResults: [
+      { id: "VAL007", level: "提醒", title: "协议待确认", detail: "新渠道费率协议尚未上传盖章版本。" },
+    ],
+    approvalFlow: [
+      { id: "APR009", nodeName: "销售运营复核", assignee: "销售运营岗", status: "待处理", opinion: "等待协议附件。" },
+    ],
+    versions: [
+      { id: "VER006", version: "v1 草稿", status: "草稿", changedBy: "销售运营岗", changedAt: "2026-05-19", summary: "新增东海资管代销费用分摊规则。" },
+    ],
+    auditLogs: [
+      { id: "AUD007", actor: "销售运营岗", action: "创建草稿", at: "2026-05-19 11:30", detail: "根据新渠道协议创建费用规则草稿。" },
+    ],
   },
   {
     id: "CFG005",
@@ -298,6 +387,24 @@ export const configs: ConfigItem[] = [
     effectiveRange: "长期",
     ownerRole: "风险运营岗",
     changeReason: "高金额未确认交易自动升级",
+    parameters: [
+      { label: "触发条件", value: "金额 > 3000 万且 T+1 未确认" },
+      { label: "升级对象", value: "清算岗、风险运营岗" },
+      { label: "升级时限", value: "30 分钟内处理" },
+    ],
+    validationResults: [
+      { id: "VAL008", level: "通过", title: "规则命中", detail: "已覆盖当前高金额未确认交易场景。" },
+    ],
+    approvalFlow: [
+      { id: "APR010", nodeName: "风险复核", assignee: "风控岗", status: "已通过", opinion: "规则阈值合理。", handledAt: "2026-03-01 09:10" },
+    ],
+    versions: [
+      { id: "VER007", version: "v2", status: "当前生效", changedBy: "风控岗", changedAt: "2026-03-01", summary: "新增高金额未确认自动升级。" },
+      { id: "VER008", version: "v1", status: "历史版本", changedBy: "风控岗", changedAt: "2025-12-01", summary: "仅按 T+1 未确认升级。" },
+    ],
+    auditLogs: [
+      { id: "AUD008", actor: "风控岗", action: "调整规则", at: "2026-03-01 09:10", detail: "加入金额阈值和升级时限。" },
+    ],
   },
 ];
 
@@ -353,6 +460,10 @@ export const reportTemplates: ReportTemplate[] = [
     ownerRole: "运营负责人",
     cadence: "每周一 09:00",
     description: "汇总资产、交易、收入、风险和商机进展，面向管理者阅读。",
+    sensitivity: "敏感",
+    metricVersion: "MET-2026.05",
+    dataSources: ["客户", "交易", "持仓", "风险", "商机归因"],
+    requiresApproval: true,
   },
   {
     id: "RPT002",
@@ -361,6 +472,10 @@ export const reportTemplates: ReportTemplate[] = [
     ownerRole: "清算岗",
     cadence: "每日 09:00",
     description: "汇总未确认、确认超时、清算差异和高优先级处置建议。",
+    sensitivity: "内部",
+    metricVersion: "MET-2026.05",
+    dataSources: ["交易确认", "风险事件", "清算记录"],
+    requiresApproval: false,
   },
   {
     id: "RPT003",
@@ -369,6 +484,71 @@ export const reportTemplates: ReportTemplate[] = [
     ownerRole: "机构销售管理",
     cadence: "每月 3 日",
     description: "输出商机、客户、关联交易、收入费用和业绩归因链路。",
+    sensitivity: "高敏",
+    metricVersion: "MET-2026.05",
+    dataSources: ["商机", "交易", "营收", "费用", "归因"],
+    requiresApproval: true,
+  },
+];
+
+export const reportGenerationRecords: ReportGenerationRecord[] = [
+  {
+    id: "RUN001",
+    templateId: "RPT001",
+    triggeredBy: "管理者",
+    generatedAt: "2026-05-19 09:12",
+    status: "待审批",
+    outputArtifact: "机构客户周度经营报告-20260519.pdf",
+    approvalStatus: "待审批",
+    deliveryStatus: "未推送",
+  },
+  {
+    id: "RUN002",
+    templateId: "RPT002",
+    triggeredBy: "清算岗",
+    generatedAt: "2026-05-19 09:00",
+    status: "已完成",
+    outputArtifact: "交易确认风险日报-20260519.xlsx",
+    approvalStatus: "无需审批",
+    deliveryStatus: "已推送",
+  },
+  {
+    id: "RUN003",
+    templateId: "RPT003",
+    triggeredBy: "报表 Agent",
+    generatedAt: "2026-05-18 20:30",
+    status: "失败",
+    outputArtifact: "商机业绩归因报告-202605.xlsx",
+    approvalStatus: "待审批",
+    deliveryStatus: "未推送",
+    failureReason: "归因快照缺少费用明细版本",
+  },
+];
+
+export const scheduledReportTasks: ScheduledReportTask[] = [
+  {
+    id: "SCH001",
+    templateId: "RPT002",
+    cadence: "每日 09:00",
+    recipients: ["清算岗", "风险运营岗"],
+    dataScope: "未确认与异常交易",
+    status: "启用",
+    lastRun: "2026-05-19 09:00",
+    nextRun: "2026-05-20 09:00",
+    lastResult: "成功",
+    requiresApproval: false,
+  },
+  {
+    id: "SCH002",
+    templateId: "RPT001",
+    cadence: "每周一 09:00",
+    recipients: ["管理者", "运营负责人"],
+    dataScope: "全机构客户",
+    status: "草稿",
+    lastRun: "-",
+    nextRun: "待审批后启用",
+    lastResult: "待运行",
+    requiresApproval: true,
   },
 ];
 
@@ -380,6 +560,7 @@ export const metricDefinitions: MetricDefinition[] = [
     formula: "sum(holding.marketValue)",
     owner: "运营数据岗",
     updateFrequency: "每日",
+    version: "MET-2026.05",
   },
   {
     id: "MET002",
@@ -388,6 +569,7 @@ export const metricDefinitions: MetricDefinition[] = [
     formula: "count(order where confirmationStatus in pending, warning)",
     owner: "清算岗",
     updateFrequency: "实时",
+    version: "MET-2026.05",
   },
   {
     id: "MET003",
@@ -396,6 +578,7 @@ export const metricDefinitions: MetricDefinition[] = [
     formula: "sum(performanceAttribution.revenueAmount by opportunity)",
     owner: "销售运营岗",
     updateFrequency: "每日",
+    version: "MET-2026.05",
   },
   {
     id: "MET004",
@@ -404,6 +587,7 @@ export const metricDefinitions: MetricDefinition[] = [
     formula: "closedRiskEvents / totalRiskEvents",
     owner: "风险运营岗",
     updateFrequency: "每日",
+    version: "MET-2026.05",
   },
 ];
 
@@ -416,6 +600,10 @@ export const agentTasks: AgentTask[] = [
     status: "已完成",
     riskLevel: "低",
     lastUpdate: "刚刚",
+    inputSources: ["客户全景", "交易记录", "持仓快照"],
+    executionSteps: ["读取客户资产快照", "拆分交易流入和净值影响", "生成解释草稿"],
+    outputArtifacts: ["资产变化解释草稿"],
+    humanReview: "不需要",
   },
   {
     id: "AGT002",
@@ -425,6 +613,10 @@ export const agentTasks: AgentTask[] = [
     status: "待人审",
     riskLevel: "中",
     lastUpdate: "2 分钟前",
+    inputSources: ["客户资产", "交易", "风险", "商机归因"],
+    executionSteps: ["汇总经营指标", "生成周报结构", "等待人工确认导出"],
+    outputArtifacts: ["经营周报预览"],
+    humanReview: "待审核",
   },
   {
     id: "AGT003",
@@ -434,6 +626,10 @@ export const agentTasks: AgentTask[] = [
     status: "待人审",
     riskLevel: "中",
     lastUpdate: "5 分钟前",
+    inputSources: ["风险事件", "关联订单", "TA 回执占位"],
+    executionSteps: ["解释风险原因", "生成处置建议", "等待人工确认"],
+    outputArtifacts: ["风险处理说明"],
+    humanReview: "待审核",
   },
   {
     id: "AGT004",
@@ -443,6 +639,92 @@ export const agentTasks: AgentTask[] = [
     status: "待执行",
     riskLevel: "高",
     lastUpdate: "待确认",
+    inputSources: ["交易确认状态", "风险规则"],
+    executionSteps: ["生成调度配置", "校验推送范围", "等待人工确认"],
+    outputArtifacts: ["定时任务草稿"],
+    humanReview: "待审核",
+  },
+];
+
+export const agentGovernanceRules: AgentGovernanceRule[] = [
+  {
+    id: "AGR001",
+    agentName: "数据分析 Agent",
+    allowedActions: ["生成解释", "拆解指标", "标注数据来源"],
+    forbiddenActions: ["修改交易", "关闭风险", "发送外部通知"],
+    requiresHumanReview: false,
+    maxRiskLevel: "中",
+    dataSources: ["客户", "交易", "持仓", "行情"],
+    auditRequirement: "记录输入数据范围和输出解释版本",
+  },
+  {
+    id: "AGR002",
+    agentName: "报表 Agent",
+    allowedActions: ["生成报表预览", "创建导出草稿", "生成指标说明"],
+    forbiddenActions: ["自动导出敏感报表", "绕过审批发送报表"],
+    requiresHumanReview: true,
+    maxRiskLevel: "高",
+    dataSources: ["经营指标", "客户贡献", "风险事件", "商机归因"],
+    auditRequirement: "记录报表模板、指标口径和人工确认人",
+  },
+  {
+    id: "AGR003",
+    agentName: "配置 Agent",
+    allowedActions: ["生成配置影响说明", "解释校验阻断", "生成回滚预览"],
+    forbiddenActions: ["自动生效配置", "跳过审批节点", "修改审计记录"],
+    requiresHumanReview: true,
+    maxRiskLevel: "高",
+    dataSources: ["配置版本", "审批流", "校验结果", "审计记录"],
+    auditRequirement: "记录配置版本、影响范围和审批结果",
+  },
+  {
+    id: "AGR004",
+    agentName: "邮件 Agent",
+    allowedActions: ["生成邮件草稿", "整理收件人建议"],
+    forbiddenActions: ["自动发送外部邮件", "添加未授权收件人"],
+    requiresHumanReview: true,
+    maxRiskLevel: "中",
+    dataSources: ["风险事件", "客户经理", "处理说明"],
+    auditRequirement: "记录邮件草稿版本和确认人",
+  },
+];
+
+export const agentAuditLogs: AgentAuditLog[] = [
+  {
+    id: "AAL001",
+    taskId: "AGT001",
+    agentName: "数据分析 Agent",
+    triggeredBy: "运营岗用户",
+    action: "生成资产变化解释",
+    dataAccessed: ["客户 C001", "交易 T20260519001", "持仓 H001"],
+    output: "资产变化解释草稿",
+    humanReviewStatus: "无需人审",
+    externalEffect: "无",
+    at: "2026-05-19 11:05",
+  },
+  {
+    id: "AAL002",
+    taskId: "AGT002",
+    agentName: "报表 Agent",
+    triggeredBy: "管理者",
+    action: "生成机构客户周报预览",
+    dataAccessed: ["经营指标", "客户贡献", "风险事件", "商机归因"],
+    output: "经营周报预览",
+    humanReviewStatus: "待人审",
+    externalEffect: "报表草稿",
+    at: "2026-05-19 11:08",
+  },
+  {
+    id: "AAL003",
+    taskId: "AGT004",
+    agentName: "调度 Agent",
+    triggeredBy: "清算岗",
+    action: "创建异常交易推送草稿",
+    dataAccessed: ["交易确认状态", "风险规则"],
+    output: "每日 09:00 推送任务草稿",
+    humanReviewStatus: "待人审",
+    externalEffect: "定时任务草稿",
+    at: "2026-05-19 11:12",
   },
 ];
 
@@ -457,6 +739,11 @@ export const apiIntegrationModules: ApiIntegrationModule[] = [
     mockEndpoint: "searchCustomers",
     realEndpoint: "/customers, /accounts",
     blocker: "缺少客户联系人、交易账户、基金账户样例响应",
+    dataVolume: "中",
+    mappingLayer: "BFF 标准化",
+    queryPushdown: "建议",
+    cacheStrategy: "字典缓存",
+    performanceRisk: "中",
   },
   {
     id: "API-ORDER",
@@ -468,6 +755,11 @@ export const apiIntegrationModules: ApiIntegrationModule[] = [
     mockEndpoint: "searchOrders",
     realEndpoint: "/orders, /confirmations",
     blocker: "需要确认订单状态、TA 回执状态和清算状态枚举",
+    dataVolume: "大",
+    mappingLayer: "BFF 标准化",
+    queryPushdown: "必须",
+    cacheStrategy: "短期缓存",
+    performanceRisk: "高",
   },
   {
     id: "API-HOLDING",
@@ -479,6 +771,11 @@ export const apiIntegrationModules: ApiIntegrationModule[] = [
     mockEndpoint: "searchHoldings",
     realEndpoint: "/holdings, /fund-quotes",
     blocker: "待补充行情日期、份额精度和估值口径",
+    dataVolume: "大",
+    mappingLayer: "后端预计算",
+    queryPushdown: "必须",
+    cacheStrategy: "物化快照",
+    performanceRisk: "高",
   },
   {
     id: "API-OPPORTUNITY",
@@ -490,6 +787,11 @@ export const apiIntegrationModules: ApiIntegrationModule[] = [
     mockEndpoint: "searchOpportunities",
     realEndpoint: "/opportunities, /attributions",
     blocker: "商机与交易关联规则需要业务侧确认",
+    dataVolume: "中",
+    mappingLayer: "后端预计算",
+    queryPushdown: "建议",
+    cacheStrategy: "物化快照",
+    performanceRisk: "高",
   },
   {
     id: "API-CONFIG",
@@ -501,6 +803,11 @@ export const apiIntegrationModules: ApiIntegrationModule[] = [
     mockEndpoint: "searchConfigs",
     realEndpoint: "/configs, /approvals",
     blocker: "需要确认垫资、孳息、费用、风控规则字段和审批节点",
+    dataVolume: "小",
+    mappingLayer: "BFF 标准化",
+    queryPushdown: "可选",
+    cacheStrategy: "字典缓存",
+    performanceRisk: "低",
   },
   {
     id: "API-ASSISTANT",
@@ -512,6 +819,11 @@ export const apiIntegrationModules: ApiIntegrationModule[] = [
     mockEndpoint: "listAgentTasks",
     realEndpoint: "/agent-tasks, /reports, /schedules",
     blocker: "需要定义人审回调、任务状态和输出物存储策略",
+    dataVolume: "中",
+    mappingLayer: "BFF 标准化",
+    queryPushdown: "建议",
+    cacheStrategy: "短期缓存",
+    performanceRisk: "中",
   },
 ];
 
@@ -522,6 +834,41 @@ export const integrationChecklist: IntegrationChecklistItem[] = [
   { id: "INT004", title: "定义错误码、分页、排序和筛选约定", category: "契约", status: "未开始", owner: "后端接口负责人" },
   { id: "INT005", title: "准备联调环境、Mock 切真实开关和回滚方案", category: "联调", status: "未开始", owner: "工程负责人" },
   { id: "INT006", title: "制定客户、交易、配置、AI 动作验收用例", category: "验收", status: "未开始", owner: "业务运营代表" },
+];
+
+export const performanceStrategies: PerformanceStrategyItem[] = [
+  {
+    id: "PERF001",
+    scenario: "交易、持仓、行情等大数据量列表",
+    frontendBoundary: "只传查询条件并渲染当前页，不做全量筛选和聚合",
+    bffResponsibility: "统一分页、排序、筛选、状态映射和错误格式",
+    backendResponsibility: "查询下推、索引优化、必要时提供汇总接口",
+    risk: "高",
+  },
+  {
+    id: "PERF002",
+    scenario: "客户、产品、状态码等稳定主数据",
+    frontendBoundary: "消费标准化字典，不维护多来源状态解释",
+    bffResponsibility: "做字段标准化、版本缓存和失效策略",
+    backendResponsibility: "提供变更时间戳或版本号",
+    risk: "中",
+  },
+  {
+    id: "PERF003",
+    scenario: "商机归因、营收贡献、报表指标",
+    frontendBoundary: "展示结果和钻取链路，不在浏览器内做跨表 join",
+    bffResponsibility: "读取物化快照或异步计算结果，保留口径版本",
+    backendResponsibility: "提供归因基础数据、收入费用明细和计算任务状态",
+    risk: "高",
+  },
+  {
+    id: "PERF004",
+    scenario: "配置、审批、审计等 MAFDIC 自有数据",
+    frontendBoundary: "提交命令和展示版本差异，不直接拼装审批状态",
+    bffResponsibility: "持久化配置版本、审批节点、审计记录和回滚预案",
+    backendResponsibility: "校验业务侧规则冲突或同步状态",
+    risk: "中",
+  },
 ];
 
 export const formatMoney = (value: number) => {

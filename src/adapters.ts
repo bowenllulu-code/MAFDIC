@@ -9,11 +9,16 @@ import type {
   Task,
   TransactionOrder,
   ReportTemplate,
+  ReportGenerationRecord,
+  ScheduledReportTask,
   MetricDefinition,
   OpportunityAttribution,
   AgentTask,
+  AgentAuditLog,
+  AgentGovernanceRule,
   ApiIntegrationModule,
   IntegrationChecklistItem,
+  PerformanceStrategyItem,
 } from "./domain";
 
 export type ConsoleDataProvider = {
@@ -27,11 +32,16 @@ export type ConsoleDataProvider = {
   getTasks(): Task[];
   getAssistantActions(): AssistantAction[];
   getReportTemplates(): ReportTemplate[];
+  getReportGenerationRecords(): ReportGenerationRecord[];
+  getScheduledReportTasks(): ScheduledReportTask[];
   getMetricDefinitions(): MetricDefinition[];
   getOpportunityAttributions(): OpportunityAttribution[];
   getAgentTasks(): AgentTask[];
+  getAgentGovernanceRules(): AgentGovernanceRule[];
+  getAgentAuditLogs(): AgentAuditLog[];
   getApiIntegrationModules(): ApiIntegrationModule[];
   getIntegrationChecklist(): IntegrationChecklistItem[];
+  getPerformanceStrategies(): PerformanceStrategyItem[];
 };
 
 export type ConsoleDataSnapshot = {
@@ -45,11 +55,16 @@ export type ConsoleDataSnapshot = {
   tasks: Task[];
   assistantActions: AssistantAction[];
   reportTemplates: ReportTemplate[];
+  reportGenerationRecords: ReportGenerationRecord[];
+  scheduledReportTasks: ScheduledReportTask[];
   metricDefinitions: MetricDefinition[];
   opportunityAttributions: OpportunityAttribution[];
   agentTasks: AgentTask[];
+  agentGovernanceRules: AgentGovernanceRule[];
+  agentAuditLogs: AgentAuditLog[];
   apiIntegrationModules: ApiIntegrationModule[];
   integrationChecklist: IntegrationChecklistItem[];
+  performanceStrategies: PerformanceStrategyItem[];
 };
 
 export type ApiResponse<T> =
@@ -122,11 +137,16 @@ export type ConsoleApiClient = {
   listMetrics(): Promise<ApiResponse<Metric[]>>;
   listAssistantActions(): Promise<ApiResponse<AssistantAction[]>>;
   listReportTemplates(): Promise<ApiResponse<ReportTemplate[]>>;
+  listReportGenerationRecords(): Promise<ApiResponse<ReportGenerationRecord[]>>;
+  listScheduledReportTasks(): Promise<ApiResponse<ScheduledReportTask[]>>;
   listMetricDefinitions(): Promise<ApiResponse<MetricDefinition[]>>;
   listOpportunityAttributions(): Promise<ApiResponse<OpportunityAttribution[]>>;
   listAgentTasks(): Promise<ApiResponse<AgentTask[]>>;
+  listAgentGovernanceRules(): Promise<ApiResponse<AgentGovernanceRule[]>>;
+  listAgentAuditLogs(): Promise<ApiResponse<AgentAuditLog[]>>;
   listApiIntegrationModules(): Promise<ApiResponse<ApiIntegrationModule[]>>;
   listIntegrationChecklist(): Promise<ApiResponse<IntegrationChecklistItem[]>>;
+  listPerformanceStrategies(): Promise<ApiResponse<PerformanceStrategyItem[]>>;
 };
 
 export function snapshotFromProvider(provider: ConsoleDataProvider): ConsoleDataSnapshot {
@@ -141,10 +161,15 @@ export function snapshotFromProvider(provider: ConsoleDataProvider): ConsoleData
     tasks: provider.getTasks(),
     assistantActions: provider.getAssistantActions(),
     reportTemplates: provider.getReportTemplates(),
+    reportGenerationRecords: provider.getReportGenerationRecords(),
+    scheduledReportTasks: provider.getScheduledReportTasks(),
     metricDefinitions: provider.getMetricDefinitions(),
     opportunityAttributions: provider.getOpportunityAttributions(),
     agentTasks: provider.getAgentTasks(),
+    agentGovernanceRules: provider.getAgentGovernanceRules(),
+    agentAuditLogs: provider.getAgentAuditLogs(),
     apiIntegrationModules: provider.getApiIntegrationModules(),
     integrationChecklist: provider.getIntegrationChecklist(),
+    performanceStrategies: provider.getPerformanceStrategies(),
   };
 }
