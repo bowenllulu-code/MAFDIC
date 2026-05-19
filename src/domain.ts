@@ -99,12 +99,14 @@ export type OpportunityAttribution = {
 export type ConfigItem = {
   id: string;
   customerId?: string;
-  type: "垫资配置" | "垫资行" | "孳息规则" | "费用规则";
+  type: "垫资配置" | "垫资行" | "孳息规则" | "费用规则" | "风控规则";
   name: string;
   status: Status;
   version: string;
   approvalStatus: string;
   effectiveRange: string;
+  ownerRole?: string;
+  changeReason?: string;
 };
 
 export type Task = {
@@ -166,6 +168,7 @@ export type OperationRecord = {
   title: string;
   type: ActionPreview["type"];
   context: string;
-  status: "草稿" | "待确认";
+  status: "草稿" | "待确认" | "已确认" | "已驳回" | "已完成";
   createdAt: string;
+  auditTrail: string[];
 };

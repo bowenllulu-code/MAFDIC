@@ -5,14 +5,16 @@ import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
   ClipboardList,
+  Plus,
   Search,
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { buildEmailPreview, buildReportPreview, buildScheduledTaskPreview } from "../actionPreviews";
 import { DataTable, MetricGrid, OperationQueue, PageHeader, StatusBadge, TextButton } from "../components/common";
 import { statusLabel } from "../constants";
-import type { ActionPreview, AgentTask, OperationRecord, PageId } from "../domain";
+import type { ActionPreview, AgentTask, ConfigItem, OperationRecord, PageId } from "../domain";
 import { formatMoney } from "../mockData";
 import { mockProvider } from "../mockProvider";
 
@@ -30,7 +32,15 @@ const metricDefinitions = mockProvider.getMetricDefinitions();
 const opportunityAttributions = mockProvider.getOpportunityAttributions();
 const agentTasks = mockProvider.getAgentTasks();
 
-export function WorkspacePage({ jump, operationRecords }: { jump: (page: PageId) => void; operationRecords: OperationRecord[] }) {
+export function WorkspacePage({
+  jump,
+  operationRecords,
+  updateOperationStatus,
+}: {
+  jump: (page: PageId) => void;
+  operationRecords: OperationRecord[];
+  updateOperationStatus: (id: string, status: OperationRecord["status"]) => void;
+}) {
   return (
     <>
       <PageHeader
@@ -80,7 +90,7 @@ export function WorkspacePage({ jump, operationRecords }: { jump: (page: PageId)
               <Bot size={18} />
             </button>
           </div>
-          <OperationQueue records={operationRecords} />
+          <OperationQueue records={operationRecords} onStatusChange={updateOperationStatus} />
         </section>
       </div>
     </>
@@ -102,6 +112,10 @@ export function CustomersPage({
   openRisk: (id: string) => void;
   jump: (page: PageId) => void;
 }) {
+  const [keyword, setKeyword] = useState("");
+  const visibleCustomers = customers.filter((customer) =>
+    `${customer.name}${customer.shortName}${customer.relationshipManager}${customer.tags.join("")}`.includes(keyword.trim()),
+  );
   const selected = customers.find((customer) => customer.id === selectedCustomerId) ?? customers[0];
   const selectedHoldings = holdings.filter((holding) => holding.customerId === selected.id);
   const selectedOrders = orders.filter((order) => order.customerId === selected.id);
@@ -121,8 +135,14 @@ export function CustomersPage({
             <h2>机构客户</h2>
             <Search size={18} />
           </div>
+          <input
+            className="control-input"
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="搜索客户、经理、标签"
+          />
           <div className="customer-list">
-            {customers.map((customer) => (
+            {visibleCustomers.map((customer) => (
               <button
                 className={customer.id === selected.id ? "selected" : ""}
                 key={customer.id}
@@ -205,7 +225,15 @@ export function TransactionsPage({
   openOrder: (id: string) => void;
   openCustomer: (id: string) => void;
 }) {
+  const [keyword, setKeyword] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"全部" | "待确认" | "异常" | "已完成">("全部");
   const filteredOrders = orders.filter((order) => order.customerId === selectedCustomerId);
+  const visibleOrders = filteredOrders.filter((order) => {
+    const statusText = statusLabel[order.confirmationStatus];
+    const matchesKeyword = `${order.id}${order.fundName}${order.tradeType}${order.channel}`.includes(keyword.trim());
+    const matchesStatus = statusFilter === "全部" || statusText === statusFilter;
+    return matchesKeyword && matchesStatus;
+  });
   const selected = customers.find((customer) => customer.id === selectedCustomerId) ?? customers[0];
   return (
     <>
@@ -232,9 +260,26 @@ export function TransactionsPage({
             <h2>交易记录</h2>
             <ClipboardList size={18} />
           </div>
+          <div className="filter-row">
+            <input
+              className="control-input"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder="搜索订单、基金、渠道"
+            />
+            {(["全部", "待确认", "异常", "已完成"] as const).map((status) => (
+              <button
+                className={statusFilter === status ? "active" : ""}
+                key={status}
+                onClick={() => setStatusFilter(status)}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
           <DataTable
             columns={["订单号", "客户", "基金", "类型", "金额", "状态"]}
-            rows={filteredOrders.map((order) => {
+            rows={visibleOrders.map((order) => {
               const customer = customers.find((item) => item.id === order.customerId);
               return [
                 <TextButton onClick={() => openOrder(order.id)}>{order.id}</TextButton>,
@@ -272,6 +317,8 @@ export function RisksPage({
   openCustomer: (id: string) => void;
   openOrder: (id: string) => void;
 }) {
+  const [severityFilter, setSeverityFilter] = useState<"全部" | "high" | "medium" | "low">("全部");
+  const visibleRisks = risks.filter((risk) => severityFilter === "全部" || risk.severity === severityFilter);
   return (
     <>
       <PageHeader
@@ -279,8 +326,19 @@ export function RisksPage({
         title="风险异常"
         description="集中展示告警、命中规则、原因解释、处置建议和闭环结果。"
       />
+      <div className="operation-strip">
+        {(["全部", "high", "medium", "low"] as const).map((severity) => (
+          <button
+            className={severityFilter === severity ? "active" : ""}
+            key={severity}
+            onClick={() => setSeverityFilter(severity)}
+          >
+            {severity === "全部" ? "全部风险" : severity.toUpperCase()}
+          </button>
+        ))}
+      </div>
       <div className="content-grid">
-        {risks.map((risk) => (
+        {visibleRisks.map((risk) => (
           <section className="panel span-4" key={risk.id}>
             <div className="risk-head">
               <span className={`severity severity-${risk.severity}`}>{risk.severity.toUpperCase()}</span>
@@ -403,10 +461,43 @@ export function PerformancePage({
 export function ConfigsPage({
   openConfig,
   openCustomer,
+  createPreview,
 }: {
   openConfig: (id: string) => void;
   openCustomer: (id: string) => void;
+  createPreview: (preview: ActionPreview) => void;
 }) {
+  const [typeFilter, setTypeFilter] = useState<ConfigItem["type"] | "全部">("全部");
+  const [drafts, setDrafts] = useState<ConfigItem[]>([]);
+  const [draftType, setDraftType] = useState<ConfigItem["type"]>("垫资配置");
+  const [draftCustomerId, setDraftCustomerId] = useState(customers[0].id);
+  const [draftName, setDraftName] = useState("华北城投垫资额度临时调整");
+  const allConfigs = useMemo(() => [...drafts, ...configs], [drafts]);
+  const visibleConfigs = allConfigs.filter((config) => typeFilter === "全部" || config.type === typeFilter);
+  const configTypes: Array<ConfigItem["type"] | "全部"> = ["全部", "垫资配置", "垫资行", "孳息规则", "费用规则", "风控规则"];
+  const createDraft = () => {
+    const draft: ConfigItem = {
+      id: `CFG-DRAFT-${Date.now()}`,
+      customerId: draftType === "风控规则" ? undefined : draftCustomerId,
+      type: draftType,
+      name: draftName.trim() || `${draftType}变更草稿`,
+      status: "draft",
+      version: "v1 草稿",
+      approvalStatus: "待提交",
+      effectiveRange: "2026-06-01 起",
+      ownerRole: draftType === "垫资行" ? "资金岗" : draftType === "风控规则" ? "风险运营岗" : "配置岗",
+      changeReason: "业务原型中创建的配置变更草稿",
+    };
+    setDrafts((currentDrafts) => [draft, ...currentDrafts]);
+    createPreview({
+      type: "审批说明",
+      title: `${draft.name}审批说明`,
+      context: `${draft.type} / ${draft.version}`,
+      summary: `已生成 ${draft.type} 草稿，影响范围为 ${draft.customerId ? customers.find((customer) => customer.id === draft.customerId)?.shortName : "全局规则"}，需要确认字段、审批路径和生效时间。`,
+      steps: ["创建配置草稿", "检查客户范围、规则冲突和生效期", "送入待确认队列，等待人工提交审批"],
+      requiresApproval: true,
+    });
+  };
   return (
     <>
       <PageHeader
@@ -414,28 +505,98 @@ export function ConfigsPage({
         title="运营配置"
         description="承载垫资配置、垫资行、孳息规则、费用规则、版本、审批和配置审计。"
       />
-      <section className="panel">
-        <div className="panel-title">
-          <h2>配置清单</h2>
-          <ShieldCheck size={18} />
-        </div>
-        <DataTable
-          columns={["类型", "名称", "客户", "版本", "审批", "生效期", "状态"]}
-          rows={configs.map((config) => [
-            config.type,
-            <TextButton onClick={() => openConfig(config.id)}>{config.name}</TextButton>,
-            config.customerId ? (
-              <TextButton onClick={() => openCustomer(config.customerId!)}>
-                {customers.find((customer) => customer.id === config.customerId)?.shortName ?? "-"}
-              </TextButton>
-            ) : "-",
-            config.version,
-            config.approvalStatus,
-            config.effectiveRange,
-            statusLabel[config.status],
-          ])}
-        />
-      </section>
+      <div className="metric-grid">
+        <article className="metric-card"><span>配置总数</span><strong>{allConfigs.length}</strong><em className="metric-neutral">含草稿 {drafts.length} 条</em></article>
+        <article className="metric-card"><span>待审批</span><strong>{allConfigs.filter((config) => config.approvalStatus.includes("待")).length}</strong><em className="metric-risk">需人工确认</em></article>
+        <article className="metric-card"><span>已生效</span><strong>{allConfigs.filter((config) => config.status === "active").length}</strong><em className="metric-good">当前执行中</em></article>
+        <article className="metric-card"><span>覆盖能力</span><strong>5 类</strong><em className="metric-neutral">垫资/孳息/费用/风控</em></article>
+      </div>
+      <div className="content-grid">
+        <section className="panel span-8">
+          <div className="panel-title">
+            <h2>配置清单</h2>
+            <ShieldCheck size={18} />
+          </div>
+          <div className="filter-row">
+            {configTypes.map((type) => (
+              <button
+                className={typeFilter === type ? "active" : ""}
+                key={type}
+                onClick={() => setTypeFilter(type)}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+          <DataTable
+            columns={["类型", "名称", "客户", "版本", "审批", "负责人", "生效期", "状态"]}
+            rows={visibleConfigs.map((config) => [
+              config.type,
+              <TextButton onClick={() => {
+                if (config.id.startsWith("CFG-DRAFT")) {
+                  createPreview({
+                    type: "审批说明",
+                    title: `${config.name}审批说明`,
+                    context: `${config.type} / ${config.version}`,
+                    summary: `该草稿尚未写入后端配置库，当前用于确认字段、影响范围、审批路径和生效时间。`,
+                    steps: ["复核配置草稿字段", "校验影响范围与规则冲突", "提交人工审批后等待生效"],
+                    requiresApproval: true,
+                  });
+                  return;
+                }
+                openConfig(config.id);
+              }}>{config.name}</TextButton>,
+              config.customerId ? (
+                <TextButton onClick={() => openCustomer(config.customerId!)}>
+                  {customers.find((customer) => customer.id === config.customerId)?.shortName ?? "-"}
+                </TextButton>
+              ) : "-",
+              config.version,
+              config.approvalStatus,
+              config.ownerRole ?? "-",
+              config.effectiveRange,
+              statusLabel[config.status],
+            ])}
+          />
+        </section>
+        <section className="panel span-4">
+          <div className="panel-title">
+            <h2>配置变更工作台</h2>
+            <Plus size={18} />
+          </div>
+          <div className="config-form">
+            <label>
+              <span>配置类型</span>
+              <select value={draftType} onChange={(event) => setDraftType(event.target.value as ConfigItem["type"])}>
+                {configTypes.filter((type) => type !== "全部").map((type) => <option key={type}>{type}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>影响客户</span>
+              <select value={draftCustomerId} onChange={(event) => setDraftCustomerId(event.target.value)}>
+                {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.shortName}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>变更名称</span>
+              <input value={draftName} onChange={(event) => setDraftName(event.target.value)} />
+            </label>
+            <button onClick={createDraft}>创建草稿并生成审批说明</button>
+          </div>
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>配置审批路径</h2>
+            <span className="status status-pending">Phase 6</span>
+          </div>
+          <div className="process-lane">
+            <div><strong>草稿</strong><span>配置岗维护字段、范围和生效期</span></div>
+            <div><strong>规则校验</strong><span>检查额度、孳息、费用和风控冲突</span></div>
+            <div><strong>人工审批</strong><span>主管确认后进入待生效</span></div>
+            <div><strong>生效留痕</strong><span>记录版本、审批意见和影响对象</span></div>
+          </div>
+        </section>
+      </div>
     </>
   );
 }
@@ -529,10 +690,12 @@ export function OpportunitiesPage({
 export function AssistantPage({
   createPreview,
   operationRecords,
+  updateOperationStatus,
   runtimeAgentTasks,
 }: {
   createPreview: (preview: ActionPreview) => void;
   operationRecords: OperationRecord[];
+  updateOperationStatus: (id: string, status: OperationRecord["status"]) => void;
   runtimeAgentTasks: AgentTask[];
 }) {
   const visibleAgentTasks = [...runtimeAgentTasks, ...agentTasks];
@@ -610,7 +773,7 @@ export function AssistantPage({
             <h2>动作草稿与审批占位</h2>
             <span className="status status-draft">mock 队列</span>
           </div>
-          <OperationQueue records={operationRecords} />
+          <OperationQueue records={operationRecords} onStatusChange={updateOperationStatus} />
         </section>
         <section className="panel span-12">
           <div className="panel-title">

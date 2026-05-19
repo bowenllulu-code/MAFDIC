@@ -174,6 +174,8 @@ The first runnable version should focus on:
 - Configuration management pages for advance funding, banks, and interest accrual
 - Sales opportunity and performance attribution views
 - An AI assistant workspace capable of conversational mock workflows, report generation previews, scheduled task previews, and email draft previews
+- Human-reviewed operation queues for AI actions and configuration changes
+- A configuration center prototype covering advance funding, funding banks, interest accrual, fee rules, and risk rules
 - A foundation that can later connect to real APIs, scheduled jobs, and agent orchestration
 
 ## External API Assumption

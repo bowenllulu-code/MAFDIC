@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { CheckCircle2, CircleX, Play, RotateCcw } from "lucide-react";
 import { statusLabel } from "../constants";
 import type { Metric, OperationRecord, Status } from "../domain";
 
@@ -40,7 +41,13 @@ export function MetricGrid({ metrics }: { metrics: Metric[] }) {
   );
 }
 
-export function OperationQueue({ records }: { records: OperationRecord[] }) {
+export function OperationQueue({
+  records,
+  onStatusChange,
+}: {
+  records: OperationRecord[];
+  onStatusChange?: (id: string, status: OperationRecord["status"]) => void;
+}) {
   if (records.length === 0) {
     return (
       <div className="empty-state">
@@ -57,11 +64,26 @@ export function OperationQueue({ records }: { records: OperationRecord[] }) {
           <div>
             <span>{record.type} · {record.context}</span>
             <strong>{record.title}</strong>
-            <em>{record.createdAt}</em>
+            <em>{record.auditTrail.at(-1) ?? record.createdAt}</em>
           </div>
-          <span className={record.status === "待确认" ? "status status-pending" : "status status-draft"}>
-            {record.status}
-          </span>
+          <div className="queue-actions">
+            <span className={`operation-status operation-status-${record.status}`}>{record.status}</span>
+            {onStatusChange && record.status === "草稿" ? (
+              <button title="送审" onClick={() => onStatusChange(record.id, "待确认")}><Play size={15} /></button>
+            ) : null}
+            {onStatusChange && record.status === "待确认" ? (
+              <>
+                <button title="确认" onClick={() => onStatusChange(record.id, "已确认")}><CheckCircle2 size={15} /></button>
+                <button title="驳回" onClick={() => onStatusChange(record.id, "已驳回")}><CircleX size={15} /></button>
+              </>
+            ) : null}
+            {onStatusChange && record.status === "已确认" ? (
+              <button title="完成" onClick={() => onStatusChange(record.id, "已完成")}><CheckCircle2 size={15} /></button>
+            ) : null}
+            {onStatusChange && record.status === "已驳回" ? (
+              <button title="重新送审" onClick={() => onStatusChange(record.id, "待确认")}><RotateCcw size={15} /></button>
+            ) : null}
+          </div>
         </article>
       ))}
     </div>

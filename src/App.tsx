@@ -58,6 +58,19 @@ function App() {
   const openRisk = (id: string) => setDrawer({ type: "risk", id });
   const openOpportunity = (id: string) => setDrawer({ type: "opportunity", id });
   const openConfig = (id: string) => setDrawer({ type: "config", id });
+  const updateOperationStatus = (id: string, status: OperationRecord["status"]) => {
+    setOperationRecords((currentRecords) =>
+      currentRecords.map((record) =>
+        record.id === id
+          ? {
+              ...record,
+              status,
+              auditTrail: [`${status} · 刚刚`, ...record.auditTrail],
+            }
+          : record,
+      ),
+    );
+  };
   const saveActionPreview = (preview: ActionPreview) => {
     const idSuffix = Date.now();
     const record: OperationRecord = {
@@ -67,6 +80,7 @@ function App() {
       context: preview.context,
       status: preview.requiresApproval ? "待确认" : "草稿",
       createdAt: "刚刚",
+      auditTrail: [`${preview.requiresApproval ? "进入待确认" : "保存草稿"} · 刚刚`],
     };
     const agentTask: AgentTask = {
       id: `AGT-${idSuffix}`,
@@ -132,7 +146,13 @@ function App() {
           </div>
         </header>
         <div className="page-body">
-          {activePage === "workspace" && <WorkspacePage jump={setActivePage} operationRecords={operationRecords} />}
+          {activePage === "workspace" && (
+            <WorkspacePage
+              jump={setActivePage}
+              operationRecords={operationRecords}
+              updateOperationStatus={updateOperationStatus}
+            />
+          )}
           {activePage === "customers" && (
             <CustomersPage
               selectedCustomerId={selectedCustomerId}
@@ -159,12 +179,19 @@ function App() {
               createPreview={setActionPreview}
             />
           )}
-          {activePage === "configs" && <ConfigsPage openConfig={openConfig} openCustomer={openCustomer} />}
+          {activePage === "configs" && (
+            <ConfigsPage
+              openConfig={openConfig}
+              openCustomer={openCustomer}
+              createPreview={setActionPreview}
+            />
+          )}
           {activePage === "opportunities" && <OpportunitiesPage openOpportunity={openOpportunity} openCustomer={openCustomer} openOrder={openOrder} />}
           {activePage === "assistant" && (
             <AssistantPage
               createPreview={setActionPreview}
               operationRecords={operationRecords}
+              updateOperationStatus={updateOperationStatus}
               runtimeAgentTasks={agentTasks}
             />
           )}

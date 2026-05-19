@@ -284,6 +284,58 @@ h2 {
   font-weight: 700;
 }
 
+.control-input,
+.filter-row input,
+.config-form input,
+.config-form select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #d0d7e2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #20242c;
+}
+
+.control-input {
+  margin-bottom: 12px;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-row .control-input {
+  width: min(260px, 100%);
+  margin-bottom: 0;
+}
+
+.filter-row button,
+.process-lane div,
+.config-form button {
+  border-radius: 8px;
+}
+
+.filter-row button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #d0d7e2;
+  background: #ffffff;
+  color: #344054;
+  cursor: pointer;
+}
+
+.filter-row button.active,
+.operation-strip button.active {
+  border-color: #2e90fa;
+  background: #eff8ff;
+  color: #175cd3;
+  font-weight: 700;
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -646,6 +698,62 @@ tr:last-child td {
   gap: 4px;
 }
 
+.queue-actions {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px !important;
+}
+
+.queue-actions button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d0d7e2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  cursor: pointer;
+}
+
+.queue-actions button:hover {
+  border-color: #2e90fa;
+  color: #175cd3;
+}
+
+.operation-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.operation-status-草稿 {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.operation-status-待确认 {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.operation-status-已确认,
+.operation-status-已完成 {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.operation-status-已驳回 {
+  background: #fef3f2;
+  color: #b42318;
+}
+
 .queue-list span,
 .queue-list em,
 .empty-state span {
@@ -670,6 +778,53 @@ tr:last-child td {
 .action-grid article button,
 .template-grid article button {
   width: fit-content;
+}
+
+.config-form {
+  display: grid;
+  gap: 12px;
+}
+
+.config-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.config-form label span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.config-form button {
+  min-height: 38px;
+  border: 1px solid #175cd3;
+  background: #175cd3;
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.process-lane {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.process-lane div {
+  min-height: 92px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #e4e9f0;
+  background: #fbfcfd;
+}
+
+.process-lane span {
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .drawer-backdrop,

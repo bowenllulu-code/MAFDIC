@@ -66,7 +66,37 @@ Current frontend prototype coverage:
 - Saved previews create mock Agent tasks
 - Agent task orchestration view is available in the AI assistant workspace
 
-## Phase 5: Production Integration
+## Phase 5: Operational Interaction Closure
+
+- Add customer, transaction, risk, opportunity, and configuration cross-navigation
+- Add search, filter, and status views for repeated operations work
+- Add operation queue state transitions
+- Add human confirmation, rejection, completion, and audit trail placeholders
+- Add business action entry points from detail drawers and AI previews
+
+Current frontend prototype coverage:
+
+- Customer list supports keyword search
+- Transaction page supports keyword and confirmation-status filtering
+- Risk page supports severity filtering
+- AI-generated operation records can move through draft, pending confirmation, confirmed, rejected, and completed states
+- Operation queue is visible from the workspace and AI assistant
+
+## Phase 6: Configuration Center Prototype
+
+- Model advance funding configuration, funding bank, interest accrual, fee rule, and risk rule records
+- Add configuration category filtering
+- Add draft configuration creation workflow
+- Add configuration approval explanation preview
+- Add configuration approval path and effective-state placeholders
+
+Current frontend prototype coverage:
+
+- Operational configuration page includes summary metrics, category filters, and extended configuration records
+- Configuration change workspace can create mock drafts and generate approval previews
+- Configuration approval path is visible as draft, rule validation, manual approval, and effective audit stages
+
+## Phase 7: Production Integration
 
 - Connect external APIs for transaction records, fund market data, customer information, sales opportunities, holdings, revenue, and attribution inputs
 - Replace mock providers with API adapters
@@ -77,4 +107,4 @@ Current frontend prototype coverage:
 
 ## Immediate Next Step
 
-Initialize the first runnable React + TypeScript web console with mocked data and typed adapter boundaries.
+Continue toward a mock API layer so the frontend can switch from static mock providers to replaceable service endpoints before real API integration.
