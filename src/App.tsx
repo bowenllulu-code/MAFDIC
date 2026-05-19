@@ -6,6 +6,7 @@ import {
   ChartNoAxesCombined,
   Gauge,
   Landmark,
+  PlugZap,
   RefreshCw,
   Search,
   SlidersHorizontal,
@@ -15,17 +16,19 @@ import { snapshotFromProvider, type ApiResponse, type ConsoleDataSnapshot } from
 import { ActionPreviewModal, DetailDrawer } from "./components/overlays";
 import { mockApiClient } from "./mockApi";
 import { mockProvider } from "./mockProvider";
+import { buildUser, can, canView, roles } from "./permissions";
 import {
   AssistantPage,
   ConfigsPage,
   CustomersPage,
+  IntegrationPage,
   OpportunitiesPage,
   PerformancePage,
   RisksPage,
   TransactionsPage,
   WorkspacePage,
 } from "./pages/consolePages";
-import type { ActionPreview, AgentTask, DrawerState, OperationRecord, PageId } from "./domain";
+import type { ActionPreview, AgentTask, DrawerState, OperationRecord, PageId, UserRole } from "./domain";
 
 const initialData = snapshotFromProvider(mockProvider);
 
@@ -38,10 +41,12 @@ const navigation: Array<{ id: PageId; label: string; icon: typeof Gauge }> = [
   { id: "configs", label: "运营配置", icon: SlidersHorizontal },
   { id: "opportunities", label: "商机归因", icon: BriefcaseBusiness },
   { id: "assistant", label: "AI 助手", icon: Bot },
+  { id: "integration", label: "接入准备", icon: PlugZap },
 ];
 
 function App() {
   const [activePage, setActivePage] = useState<PageId>("workspace");
+  const [selectedRole, setSelectedRole] = useState<UserRole>("系统管理员");
   const [consoleData, setConsoleData] = useState<ConsoleDataSnapshot>(initialData);
   const [apiState, setApiState] = useState<"loading" | "ready" | "error">("loading");
   const [apiTrace, setApiTrace] = useState("mock-api 初始化中");
@@ -51,6 +56,7 @@ function App() {
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
   const current = useMemo(() => navigation.find((item) => item.id === activePage), [activePage]);
+  const currentUser = useMemo(() => buildUser(selectedRole), [selectedRole]);
   const loadModularConsoleData = async (): Promise<ApiResponse<ConsoleDataSnapshot>> => {
     const [
       metrics,
@@ -66,6 +72,8 @@ function App() {
       metricDefinitions,
       opportunityAttributions,
       baseAgentTasks,
+      apiIntegrationModules,
+      integrationChecklist,
     ] = await Promise.all([
       mockApiClient.listMetrics(),
       mockApiClient.searchCustomers({ pageSize: 100 }),
@@ -80,6 +88,8 @@ function App() {
       mockApiClient.listMetricDefinitions(),
       mockApiClient.listOpportunityAttributions(),
       mockApiClient.listAgentTasks(),
+      mockApiClient.listApiIntegrationModules(),
+      mockApiClient.listIntegrationChecklist(),
     ]);
     const responses = [
       metrics,
@@ -95,6 +105,8 @@ function App() {
       metricDefinitions,
       opportunityAttributions,
       baseAgentTasks,
+      apiIntegrationModules,
+      integrationChecklist,
     ];
     const failed = responses.find((response) => !response.ok);
     if (failed && !failed.ok) {
@@ -119,6 +131,8 @@ function App() {
         metricDefinitions: metricDefinitions.ok ? metricDefinitions.data : [],
         opportunityAttributions: opportunityAttributions.ok ? opportunityAttributions.data : [],
         agentTasks: baseAgentTasks.ok ? baseAgentTasks.data : [],
+        apiIntegrationModules: apiIntegrationModules.ok ? apiIntegrationModules.data : [],
+        integrationChecklist: integrationChecklist.ok ? integrationChecklist.data : [],
       },
     };
   };
@@ -166,7 +180,12 @@ function App() {
   const openRisk = (id: string) => setDrawer({ type: "risk", id });
   const openOpportunity = (id: string) => setDrawer({ type: "opportunity", id });
   const openConfig = (id: string) => setDrawer({ type: "config", id });
+  const goToPage = (page: PageId) => {
+    if (!canView(currentUser, page)) return;
+    setActivePage(page);
+  };
   const updateOperationStatus = (id: string, status: OperationRecord["status"]) => {
+    if (!can(currentUser, "approve:operation")) return;
     setOperationRecords((currentRecords) =>
       currentRecords.map((record) =>
         record.id === id
@@ -180,6 +199,7 @@ function App() {
     );
   };
   const saveActionPreview = (preview: ActionPreview) => {
+    if (!can(currentUser, "execute:ai")) return;
     const idSuffix = Date.now();
     const record: OperationRecord = {
       id: `OP-${idSuffix}`,
@@ -231,9 +251,10 @@ function App() {
             const Icon = item.icon;
             return (
               <button
-                className={item.id === activePage ? "active" : ""}
+                className={`${item.id === activePage ? "active" : ""} ${!canView(currentUser, item.id) ? "disabled" : ""}`}
+                disabled={!canView(currentUser, item.id)}
                 key={item.id}
-                onClick={() => setActivePage(item.id)}
+                onClick={() => goToPage(item.id)}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -249,10 +270,21 @@ function App() {
             <strong>{current?.label}</strong>
           </div>
           <div className="topbar-actions">
+            <div className="role-switcher">
+              <span>{currentUser.dataScope}</span>
+              <select value={selectedRole} onChange={(event) => {
+                const nextRole = event.target.value as UserRole;
+                const nextUser = buildUser(nextRole);
+                setSelectedRole(nextRole);
+                if (!canView(nextUser, activePage)) setActivePage("workspace");
+              }}>
+                {roles.map((role) => <option key={role}>{role}</option>)}
+              </select>
+            </div>
             <span className={`api-pill api-pill-${apiState}`}>{apiTrace}</span>
             <button title="刷新 Mock API 数据" onClick={() => void loadConsoleData()}><RefreshCw size={18} /></button>
             <button title="全局搜索"><Search size={18} /></button>
-            <button title="AI 助手" onClick={() => setActivePage("assistant")}><Bot size={18} /></button>
+            <button title="AI 助手" disabled={!canView(currentUser, "assistant")} onClick={() => goToPage("assistant")}><Bot size={18} /></button>
           </div>
         </header>
         {apiState === "loading" ? <div className="api-banner">正在从 Mock API 拉取业务快照...</div> : null}
@@ -261,7 +293,8 @@ function App() {
           {activePage === "workspace" && (
             <WorkspacePage
               data={consoleData}
-              jump={setActivePage}
+              user={currentUser}
+              jump={goToPage}
               operationRecords={operationRecords}
               updateOperationStatus={updateOperationStatus}
             />
@@ -274,7 +307,7 @@ function App() {
               openOrder={openOrder}
               openOpportunity={openOpportunity}
               openRisk={openRisk}
-              jump={setActivePage}
+              jump={goToPage}
             />
           )}
           {activePage === "transactions" && (
@@ -298,6 +331,7 @@ function App() {
           {activePage === "configs" && (
             <ConfigsPage
               data={consoleData}
+              user={currentUser}
               openConfig={openConfig}
               openCustomer={openCustomer}
               createPreview={setActionPreview}
@@ -307,12 +341,14 @@ function App() {
           {activePage === "assistant" && (
             <AssistantPage
               data={consoleData}
+              user={currentUser}
               createPreview={setActionPreview}
               operationRecords={operationRecords}
               updateOperationStatus={updateOperationStatus}
               runtimeAgentTasks={agentTasks}
             />
           )}
+          {activePage === "integration" && <IntegrationPage data={consoleData} />}
         </div>
       </main>
       <DetailDrawer
@@ -323,7 +359,12 @@ function App() {
         openOrder={openOrder}
         createPreview={setActionPreview}
       />
-      <ActionPreviewModal preview={actionPreview} close={() => setActionPreview(null)} save={saveActionPreview} />
+      <ActionPreviewModal
+        preview={actionPreview}
+        close={() => setActionPreview(null)}
+        save={saveActionPreview}
+        canSave={can(currentUser, "execute:ai")}
+      />
     </div>
   );
 }

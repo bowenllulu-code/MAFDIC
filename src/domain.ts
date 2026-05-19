@@ -8,7 +8,27 @@ export type PageId =
   | "performance"
   | "configs"
   | "opportunities"
-  | "assistant";
+  | "assistant"
+  | "integration";
+
+export type UserRole = "运营岗" | "清算岗" | "配置岗" | "风控岗" | "管理者" | "系统管理员";
+
+export type Permission =
+  | `view:${PageId}`
+  | "operate:queue"
+  | "approve:operation"
+  | "edit:config"
+  | "approve:config"
+  | "execute:ai"
+  | "view:all-data";
+
+export type CurrentUser = {
+  id: string;
+  name: string;
+  role: UserRole;
+  dataScope: "本人客户" | "所属团队" | "全机构" | "全系统";
+  permissions: Permission[];
+};
 
 export type DrawerState =
   | { type: "order"; id: string }
@@ -171,4 +191,24 @@ export type OperationRecord = {
   status: "草稿" | "待确认" | "已确认" | "已驳回" | "已完成";
   createdAt: string;
   auditTrail: string[];
+};
+
+export type ApiIntegrationModule = {
+  id: string;
+  name: string;
+  owner: string;
+  priority: "P0" | "P1" | "P2";
+  contractStatus: "待提供" | "待确认" | "已确认";
+  mappingStatus: "未开始" | "映射中" | "已完成";
+  mockEndpoint: string;
+  realEndpoint: string;
+  blocker: string;
+};
+
+export type IntegrationChecklistItem = {
+  id: string;
+  title: string;
+  category: "契约" | "字段" | "安全" | "联调" | "验收";
+  status: "未开始" | "进行中" | "已完成";
+  owner: string;
 };

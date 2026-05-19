@@ -44,9 +44,11 @@ export function MetricGrid({ metrics }: { metrics: Metric[] }) {
 export function OperationQueue({
   records,
   onStatusChange,
+  canOperate = true,
 }: {
   records: OperationRecord[];
   onStatusChange?: (id: string, status: OperationRecord["status"]) => void;
+  canOperate?: boolean;
 }) {
   if (records.length === 0) {
     return (
@@ -68,25 +70,34 @@ export function OperationQueue({
           </div>
           <div className="queue-actions">
             <span className={`operation-status operation-status-${record.status}`}>{record.status}</span>
-            {onStatusChange && record.status === "草稿" ? (
+            {onStatusChange && canOperate && record.status === "草稿" ? (
               <button title="送审" onClick={() => onStatusChange(record.id, "待确认")}><Play size={15} /></button>
             ) : null}
-            {onStatusChange && record.status === "待确认" ? (
+            {onStatusChange && canOperate && record.status === "待确认" ? (
               <>
                 <button title="确认" onClick={() => onStatusChange(record.id, "已确认")}><CheckCircle2 size={15} /></button>
                 <button title="驳回" onClick={() => onStatusChange(record.id, "已驳回")}><CircleX size={15} /></button>
               </>
             ) : null}
-            {onStatusChange && record.status === "已确认" ? (
+            {onStatusChange && canOperate && record.status === "已确认" ? (
               <button title="完成" onClick={() => onStatusChange(record.id, "已完成")}><CheckCircle2 size={15} /></button>
             ) : null}
-            {onStatusChange && record.status === "已驳回" ? (
+            {onStatusChange && canOperate && record.status === "已驳回" ? (
               <button title="重新送审" onClick={() => onStatusChange(record.id, "待确认")}><RotateCcw size={15} /></button>
             ) : null}
           </div>
         </article>
       ))}
     </div>
+  );
+}
+
+export function PermissionNotice({ title, message }: { title: string; message: string }) {
+  return (
+    <section className="permission-notice">
+      <strong>{title}</strong>
+      <span>{message}</span>
+    </section>
   );
 }
 

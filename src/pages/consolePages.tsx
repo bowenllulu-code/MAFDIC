@@ -6,25 +6,29 @@ import {
   ChartNoAxesCombined,
   ClipboardList,
   Plus,
+  PlugZap,
   Search,
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { buildEmailPreview, buildReportPreview, buildScheduledTaskPreview } from "../actionPreviews";
-import { DataTable, MetricGrid, OperationQueue, PageHeader, StatusBadge, TextButton } from "../components/common";
+import { DataTable, MetricGrid, OperationQueue, PageHeader, PermissionNotice, StatusBadge, TextButton } from "../components/common";
 import { statusLabel } from "../constants";
 import type { ConsoleDataSnapshot } from "../adapters";
-import type { ActionPreview, AgentTask, ConfigItem, OperationRecord, PageId } from "../domain";
+import type { ActionPreview, AgentTask, ConfigItem, CurrentUser, OperationRecord, PageId } from "../domain";
 import { formatMoney } from "../mockData";
+import { can } from "../permissions";
 
 export function WorkspacePage({
   data,
+  user,
   jump,
   operationRecords,
   updateOperationStatus,
 }: {
   data: ConsoleDataSnapshot;
+  user: CurrentUser;
   jump: (page: PageId) => void;
   operationRecords: OperationRecord[];
   updateOperationStatus: (id: string, status: OperationRecord["status"]) => void;
@@ -79,7 +83,11 @@ export function WorkspacePage({
               <Bot size={18} />
             </button>
           </div>
-          <OperationQueue records={operationRecords} onStatusChange={updateOperationStatus} />
+          <OperationQueue
+            records={operationRecords}
+            onStatusChange={updateOperationStatus}
+            canOperate={can(user, "approve:operation")}
+          />
         </section>
       </div>
     </>
@@ -461,11 +469,13 @@ export function PerformancePage({
 
 export function ConfigsPage({
   data,
+  user,
   openConfig,
   openCustomer,
   createPreview,
 }: {
   data: ConsoleDataSnapshot;
+  user: CurrentUser;
   openConfig: (id: string) => void;
   openCustomer: (id: string) => void;
   createPreview: (preview: ActionPreview) => void;
@@ -479,7 +489,9 @@ export function ConfigsPage({
   const allConfigs = useMemo(() => [...drafts, ...configs], [configs, drafts]);
   const visibleConfigs = allConfigs.filter((config) => typeFilter === "全部" || config.type === typeFilter);
   const configTypes: Array<ConfigItem["type"] | "全部"> = ["全部", "垫资配置", "垫资行", "孳息规则", "费用规则", "风控规则"];
+  const canEditConfig = can(user, "edit:config");
   const createDraft = () => {
+    if (!canEditConfig) return;
     const draft: ConfigItem = {
       id: `CFG-DRAFT-${Date.now()}`,
       customerId: draftType === "风控规则" ? undefined : draftCustomerId,
@@ -568,6 +580,12 @@ export function ConfigsPage({
             <h2>配置变更工作台</h2>
             <Plus size={18} />
           </div>
+          {!canEditConfig ? (
+            <PermissionNotice
+              title="当前角色只读"
+              message={`${user.role} 可以查看配置，但不能创建配置草稿或发起配置审批。`}
+            />
+          ) : null}
           <div className="config-form">
             <label>
               <span>配置类型</span>
@@ -585,7 +603,7 @@ export function ConfigsPage({
               <span>变更名称</span>
               <input value={draftName} onChange={(event) => setDraftName(event.target.value)} />
             </label>
-            <button onClick={createDraft}>创建草稿并生成审批说明</button>
+            <button disabled={!canEditConfig} onClick={createDraft}>创建草稿并生成审批说明</button>
           </div>
         </section>
         <section className="panel span-12">
@@ -696,12 +714,14 @@ export function OpportunitiesPage({
 
 export function AssistantPage({
   data,
+  user,
   createPreview,
   operationRecords,
   updateOperationStatus,
   runtimeAgentTasks,
 }: {
   data: ConsoleDataSnapshot;
+  user: CurrentUser;
   createPreview: (preview: ActionPreview) => void;
   operationRecords: OperationRecord[];
   updateOperationStatus: (id: string, status: OperationRecord["status"]) => void;
@@ -709,6 +729,8 @@ export function AssistantPage({
 }) {
   const { agentTasks, assistantActions, risks } = data;
   const visibleAgentTasks = [...runtimeAgentTasks, ...agentTasks];
+  const canExecuteAi = can(user, "execute:ai");
+  const canApproveOperation = can(user, "approve:operation");
   const previewFromAction = (actionId: string) => {
     if (actionId === "A001") {
       const risk = risks[0];
@@ -748,10 +770,10 @@ export function AssistantPage({
             <Bot size={18} />
           </div>
           <div className="prompt-list">
-            <button onClick={() => createPreview(previewFromAction("A001"))}>解释东海资管赎回为什么未确认</button>
-            <button onClick={() => createPreview(buildReportPreview())}>生成本周机构客户经营报告</button>
-            <button onClick={() => createPreview(buildScheduledTaskPreview())}>创建每日 9 点异常交易推送</button>
-            <button onClick={() => createPreview({
+            <button disabled={!canExecuteAi} onClick={() => createPreview(previewFromAction("A001"))}>解释东海资管赎回为什么未确认</button>
+            <button disabled={!canExecuteAi} onClick={() => createPreview(buildReportPreview())}>生成本周机构客户经营报告</button>
+            <button disabled={!canExecuteAi} onClick={() => createPreview(buildScheduledTaskPreview())}>创建每日 9 点异常交易推送</button>
+            <button disabled={!canExecuteAi} onClick={() => createPreview({
               type: "异常解释",
               title: "华北城投资产变化原因",
               context: "客户全景 / 华北城投",
@@ -760,6 +782,9 @@ export function AssistantPage({
               requiresApproval: false,
             })}>分析华北城投资产变化原因</button>
           </div>
+          {!canExecuteAi ? (
+            <PermissionNotice title="AI 动作受限" message={`${user.role} 当前不能生成 AI 动作预览。`} />
+          ) : null}
         </section>
         <section className="panel span-7">
           <div className="panel-title">
@@ -773,7 +798,7 @@ export function AssistantPage({
                 <strong>{action.title}</strong>
                 <p>{action.description}</p>
                 <em>{action.requiresApproval ? "执行前需要人工确认" : "可直接生成解释"}</em>
-                <button onClick={() => createPreview(previewFromAction(action.id))}>生成预览</button>
+                <button disabled={!canExecuteAi} onClick={() => createPreview(previewFromAction(action.id))}>生成预览</button>
               </article>
             ))}
           </div>
@@ -783,7 +808,11 @@ export function AssistantPage({
             <h2>动作草稿与审批占位</h2>
             <span className="status status-draft">mock 队列</span>
           </div>
-          <OperationQueue records={operationRecords} onStatusChange={updateOperationStatus} />
+          <OperationQueue
+            records={operationRecords}
+            onStatusChange={updateOperationStatus}
+            canOperate={canApproveOperation}
+          />
         </section>
         <section className="panel span-12">
           <div className="panel-title">
@@ -801,6 +830,77 @@ export function AssistantPage({
               task.lastUpdate,
             ])}
           />
+        </section>
+      </div>
+    </>
+  );
+}
+
+export function IntegrationPage({ data }: { data: ConsoleDataSnapshot }) {
+  const { apiIntegrationModules, integrationChecklist } = data;
+  const p0Modules = apiIntegrationModules.filter((item) => item.priority === "P0").length;
+  const confirmedContracts = apiIntegrationModules.filter((item) => item.contractStatus === "已确认").length;
+  const finishedMappings = apiIntegrationModules.filter((item) => item.mappingStatus === "已完成").length;
+  const completedChecklist = integrationChecklist.filter((item) => item.status === "已完成").length;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="API Integration Readiness"
+        title="真实 API 接入准备"
+        description="在业务接口正式提供前，先固化接口模块、字段映射、阻塞点和联调验收清单。"
+      />
+      <div className="metric-grid">
+        <article className="metric-card"><span>P0 接口模块</span><strong>{p0Modules}</strong><em className="metric-risk">优先联调</em></article>
+        <article className="metric-card"><span>契约已确认</span><strong>{confirmedContracts}</strong><em className="metric-neutral">共 {apiIntegrationModules.length} 个模块</em></article>
+        <article className="metric-card"><span>字段映射完成</span><strong>{finishedMappings}</strong><em className="metric-neutral">等待真实样例</em></article>
+        <article className="metric-card"><span>清单完成项</span><strong>{completedChecklist}</strong><em className="metric-neutral">共 {integrationChecklist.length} 项</em></article>
+      </div>
+      <div className="content-grid">
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>接口模块与映射状态</h2>
+            <PlugZap size={18} />
+          </div>
+          <DataTable
+            columns={["优先级", "模块", "负责方", "契约", "字段映射", "Mock 方法", "真实接口", "阻塞点"]}
+            rows={apiIntegrationModules.map((module) => [
+              <span className={`priority priority-${module.priority === "P0" ? "高" : module.priority === "P1" ? "中" : "低"}`}>{module.priority}</span>,
+              module.name,
+              module.owner,
+              module.contractStatus,
+              module.mappingStatus,
+              module.mockEndpoint,
+              module.realEndpoint,
+              module.blocker,
+            ])}
+          />
+        </section>
+        <section className="panel span-7">
+          <div className="panel-title">
+            <h2>接入验收清单</h2>
+            <ClipboardList size={18} />
+          </div>
+          <DataTable
+            columns={["类别", "事项", "负责人", "状态"]}
+            rows={integrationChecklist.map((item) => [
+              item.category,
+              item.title,
+              item.owner,
+              item.status,
+            ])}
+          />
+        </section>
+        <section className="panel span-5">
+          <div className="panel-title">
+            <h2>接入顺序建议</h2>
+            <span className="status status-pending">Phase 9</span>
+          </div>
+          <div className="timeline">
+            <div><strong>第一批 P0</strong><span>客户与账户、交易与确认、运营配置，先保证核心查询和配置闭环。</span></div>
+            <div><strong>第二批 P1</strong><span>持仓行情、商机归因，用于经营分析和业绩解释。</span></div>
+            <div><strong>第三批 P2</strong><span>Agent、报表、定时任务，在权限和审计边界确认后接入。</span></div>
+          </div>
         </section>
       </div>
     </>

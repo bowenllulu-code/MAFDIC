@@ -188,10 +188,12 @@ export function ActionPreviewModal({
   preview,
   close,
   save,
+  canSave,
 }: {
   preview: ActionPreview | null;
   close: () => void;
   save: (preview: ActionPreview) => void;
+  canSave: boolean;
 }) {
   if (!preview) return null;
 
@@ -223,9 +225,15 @@ export function ActionPreviewModal({
               : "当前只生成解释内容，不改变任何业务对象状态。"}
           </span>
         </div>
+        {!canSave ? (
+          <div className="approval-note approval-note-denied">
+            <strong>当前角色无执行权限</strong>
+            <span>可以查看 AI 生成内容，但不能保存草稿、送入待确认队列或触发后续操作。</span>
+          </div>
+        ) : null}
         <div className="preview-actions">
           <button onClick={close}>关闭预览</button>
-          <button onClick={() => save(preview)}>
+          <button disabled={!canSave} onClick={() => save(preview)}>
             {preview.requiresApproval ? "送入待确认队列" : "保存为草稿"}
           </button>
         </div>

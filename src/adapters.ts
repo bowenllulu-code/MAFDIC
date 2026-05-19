@@ -12,6 +12,8 @@ import type {
   MetricDefinition,
   OpportunityAttribution,
   AgentTask,
+  ApiIntegrationModule,
+  IntegrationChecklistItem,
 } from "./domain";
 
 export type ConsoleDataProvider = {
@@ -28,6 +30,8 @@ export type ConsoleDataProvider = {
   getMetricDefinitions(): MetricDefinition[];
   getOpportunityAttributions(): OpportunityAttribution[];
   getAgentTasks(): AgentTask[];
+  getApiIntegrationModules(): ApiIntegrationModule[];
+  getIntegrationChecklist(): IntegrationChecklistItem[];
 };
 
 export type ConsoleDataSnapshot = {
@@ -44,6 +48,8 @@ export type ConsoleDataSnapshot = {
   metricDefinitions: MetricDefinition[];
   opportunityAttributions: OpportunityAttribution[];
   agentTasks: AgentTask[];
+  apiIntegrationModules: ApiIntegrationModule[];
+  integrationChecklist: IntegrationChecklistItem[];
 };
 
 export type ApiResponse<T> =
@@ -119,6 +125,8 @@ export type ConsoleApiClient = {
   listMetricDefinitions(): Promise<ApiResponse<MetricDefinition[]>>;
   listOpportunityAttributions(): Promise<ApiResponse<OpportunityAttribution[]>>;
   listAgentTasks(): Promise<ApiResponse<AgentTask[]>>;
+  listApiIntegrationModules(): Promise<ApiResponse<ApiIntegrationModule[]>>;
+  listIntegrationChecklist(): Promise<ApiResponse<IntegrationChecklistItem[]>>;
 };
 
 export function snapshotFromProvider(provider: ConsoleDataProvider): ConsoleDataSnapshot {
@@ -136,5 +144,7 @@ export function snapshotFromProvider(provider: ConsoleDataProvider): ConsoleData
     metricDefinitions: provider.getMetricDefinitions(),
     opportunityAttributions: provider.getOpportunityAttributions(),
     agentTasks: provider.getAgentTasks(),
+    apiIntegrationModules: provider.getApiIntegrationModules(),
+    integrationChecklist: provider.getIntegrationChecklist(),
   };
 }

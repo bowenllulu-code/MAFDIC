@@ -12,6 +12,8 @@ import type {
   MetricDefinition,
   OpportunityAttribution,
   AgentTask,
+  ApiIntegrationModule,
+  IntegrationChecklistItem,
 } from "./domain";
 
 export const metrics: Metric[] = [
@@ -442,6 +444,84 @@ export const agentTasks: AgentTask[] = [
     riskLevel: "高",
     lastUpdate: "待确认",
   },
+];
+
+export const apiIntegrationModules: ApiIntegrationModule[] = [
+  {
+    id: "API-CUSTOMER",
+    name: "客户与账户 API",
+    owner: "客户数据组",
+    priority: "P0",
+    contractStatus: "待提供",
+    mappingStatus: "映射中",
+    mockEndpoint: "searchCustomers",
+    realEndpoint: "/customers, /accounts",
+    blocker: "缺少客户联系人、交易账户、基金账户样例响应",
+  },
+  {
+    id: "API-ORDER",
+    name: "交易与确认 API",
+    owner: "交易清算组",
+    priority: "P0",
+    contractStatus: "待提供",
+    mappingStatus: "映射中",
+    mockEndpoint: "searchOrders",
+    realEndpoint: "/orders, /confirmations",
+    blocker: "需要确认订单状态、TA 回执状态和清算状态枚举",
+  },
+  {
+    id: "API-HOLDING",
+    name: "持仓与行情 API",
+    owner: "资产数据组",
+    priority: "P1",
+    contractStatus: "待确认",
+    mappingStatus: "未开始",
+    mockEndpoint: "searchHoldings",
+    realEndpoint: "/holdings, /fund-quotes",
+    blocker: "待补充行情日期、份额精度和估值口径",
+  },
+  {
+    id: "API-OPPORTUNITY",
+    name: "商机与归因 API",
+    owner: "销售运营组",
+    priority: "P1",
+    contractStatus: "待确认",
+    mappingStatus: "映射中",
+    mockEndpoint: "searchOpportunities",
+    realEndpoint: "/opportunities, /attributions",
+    blocker: "商机与交易关联规则需要业务侧确认",
+  },
+  {
+    id: "API-CONFIG",
+    name: "运营配置 API",
+    owner: "运营配置组",
+    priority: "P0",
+    contractStatus: "待提供",
+    mappingStatus: "未开始",
+    mockEndpoint: "searchConfigs",
+    realEndpoint: "/configs, /approvals",
+    blocker: "需要确认垫资、孳息、费用、风控规则字段和审批节点",
+  },
+  {
+    id: "API-ASSISTANT",
+    name: "Agent 与报表 API",
+    owner: "智能运营组",
+    priority: "P2",
+    contractStatus: "待确认",
+    mappingStatus: "未开始",
+    mockEndpoint: "listAgentTasks",
+    realEndpoint: "/agent-tasks, /reports, /schedules",
+    blocker: "需要定义人审回调、任务状态和输出物存储策略",
+  },
+];
+
+export const integrationChecklist: IntegrationChecklistItem[] = [
+  { id: "INT001", title: "收集 P0 API 文档和样例响应", category: "契约", status: "未开始", owner: "项目负责人" },
+  { id: "INT002", title: "完成客户、交易、配置字段映射表", category: "字段", status: "进行中", owner: "产品与前端" },
+  { id: "INT003", title: "确认登录态、角色、数据范围传递方式", category: "安全", status: "进行中", owner: "安全与后端" },
+  { id: "INT004", title: "定义错误码、分页、排序和筛选约定", category: "契约", status: "未开始", owner: "后端接口负责人" },
+  { id: "INT005", title: "准备联调环境、Mock 切真实开关和回滚方案", category: "联调", status: "未开始", owner: "工程负责人" },
+  { id: "INT006", title: "制定客户、交易、配置、AI 动作验收用例", category: "验收", status: "未开始", owner: "业务运营代表" },
 ];
 
 export const formatMoney = (value: number) => {

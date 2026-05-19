@@ -101,6 +101,17 @@ nav button.active {
   color: #ffffff;
 }
 
+nav button.disabled,
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+nav button.disabled:hover {
+  background: transparent;
+  color: #cfd7df;
+}
+
 main {
   min-width: 0;
 }
@@ -129,6 +140,25 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.role-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #d0d7e2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.role-switcher select {
+  min-width: 108px;
+  border: 0;
+  background: transparent;
+  color: #20242c;
+  font-weight: 700;
 }
 
 .topbar-actions button,
@@ -439,6 +469,26 @@ h2 {
 .empty-state {
   display: grid;
   gap: 10px;
+}
+
+.permission-notice {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #fedf89;
+  border-radius: 8px;
+  background: #fffaeb;
+}
+
+.permission-notice strong {
+  color: #b54708;
+}
+
+.permission-notice span {
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .row-button,
@@ -1040,6 +1090,15 @@ tr:last-child td {
 
 .approval-note strong {
   color: #b54708;
+}
+
+.approval-note-denied {
+  border-color: #fecdca;
+  background: #fef3f2;
+}
+
+.approval-note-denied strong {
+  color: #b42318;
 }
 
 .preview-actions {

@@ -9,6 +9,8 @@ import {
   orders,
   metricDefinitions,
   agentTasks,
+  apiIntegrationModules,
+  integrationChecklist,
   opportunityAttributions,
   reportTemplates,
   risks,
@@ -29,4 +31,6 @@ export const mockProvider: ConsoleDataProvider = {
   getMetricDefinitions: () => metricDefinitions,
   getOpportunityAttributions: () => opportunityAttributions,
   getAgentTasks: () => agentTasks,
+  getApiIntegrationModules: () => apiIntegrationModules,
+  getIntegrationChecklist: () => integrationChecklist,
 };

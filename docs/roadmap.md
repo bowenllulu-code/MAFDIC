@@ -125,7 +125,30 @@ Current frontend prototype coverage:
 - Add AI action authorization boundaries
 - Add readonly and forbidden states
 
-## Phase 9: Production Integration
+Current frontend prototype coverage:
+
+- Top bar can switch between operations, clearing, configuration, risk, manager, and administrator roles
+- Role data scope is visible beside the role selector
+- Sidebar pages are disabled when the active role has no page-level permission
+- Configuration drafts are editable only for roles with configuration edit permission
+- Operation queue approval buttons are shown only for roles with operation approval permission
+- AI preview save actions are blocked for roles without AI execution permission
+
+## Phase 9: Real API Integration Readiness
+
+- Add API integration readiness workspace
+- Track API module owner, priority, contract status, field mapping status, mock endpoint, real endpoint, and blockers
+- Track integration checklist across contract, field, security, joint testing, and acceptance work
+- Define suggested integration order before real API documents arrive
+
+Current frontend prototype coverage:
+
+- New integration readiness page is available to manager and administrator roles
+- API modules show P0/P1/P2 priority, mapping status, target endpoints, and blockers
+- Integration checklist shows category, owner, and readiness status
+- Dashboard metrics summarize P0 modules, contract confirmation, mapping completion, and checklist completion
+
+## Phase 10: Production Integration
 
 - Connect external APIs for transaction records, fund market data, customer information, sales opportunities, holdings, revenue, and attribution inputs
 - Replace mock providers with API adapters

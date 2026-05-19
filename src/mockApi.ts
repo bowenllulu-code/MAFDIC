@@ -154,4 +154,10 @@ export const mockApiClient: ConsoleApiClient = {
   async listAgentTasks() {
     return endpoint(source.agentTasks);
   },
+  async listApiIntegrationModules() {
+    return endpoint(source.apiIntegrationModules);
+  },
+  async listIntegrationChecklist() {
+    return endpoint(source.integrationChecklist);
+  },
 };
