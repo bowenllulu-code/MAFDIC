@@ -9,9 +9,10 @@ export type PageId =
   | "configs"
   | "opportunities"
   | "assistant"
-  | "integration";
+  | "integration"
+  | "users";
 
-export type UserRole = "运营岗" | "清算岗" | "配置岗" | "风控岗" | "管理者" | "系统管理员";
+export type UserRole = "运营" | "销售经理" | "销售总监" | "业务主管";
 
 export type Permission =
   | `view:${PageId}`
@@ -20,14 +21,31 @@ export type Permission =
   | "edit:config"
   | "approve:config"
   | "execute:ai"
-  | "view:all-data";
+  | "view:all-data"
+  | "manage:users"
+  | "create:user"
+  | "edit:user"
+  | "delete:user";
 
 export type CurrentUser = {
   id: string;
   name: string;
   role: UserRole;
-  dataScope: "本人客户" | "所属团队" | "全机构" | "全系统";
+  dataScope: "关联客户与商机" | "全机构" | "全系统";
   permissions: Permission[];
+};
+
+export type SystemUserStatus = "启用" | "停用" | "锁定";
+
+export type SystemUser = {
+  id: string;
+  name: string;
+  loginName: string;
+  role: UserRole;
+  department: string;
+  status: SystemUserStatus;
+  lastLogin: string;
+  dataScope: CurrentUser["dataScope"];
 };
 
 export type DrawerState =

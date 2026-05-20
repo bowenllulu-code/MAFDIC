@@ -1,84 +1,62 @@
 import type { CurrentUser, PageId, Permission, UserRole } from "./domain";
 
-const basePages: PageId[] = ["workspace", "customers", "transactions", "performance", "opportunities", "assistant"];
-const allPages: PageId[] = ["workspace", "customers", "transactions", "risks", "performance", "configs", "opportunities", "assistant", "integration"];
+const salesManagerPages: PageId[] = ["workspace", "customers", "transactions", "performance", "opportunities", "assistant"];
+export const allPages: PageId[] = ["workspace", "customers", "transactions", "risks", "performance", "configs", "opportunities", "assistant", "integration", "users"];
+
+const businessManagementPages: PageId[] = allPages;
+const businessManagementBasePermissions: Permission[] = [
+  ...allPages.map((page) => `view:${page}` as const),
+  "operate:queue",
+  "approve:operation",
+  "edit:config",
+  "approve:config",
+  "execute:ai",
+  "view:all-data",
+  "manage:users",
+];
 
 const rolePermissions: Record<UserRole, Permission[]> = {
-  运营岗: [
-    ...basePages.map((page) => `view:${page}` as const),
-    "view:risks",
-    "operate:queue",
+  运营: [
+    ...businessManagementBasePermissions,
+    "create:user",
+    "edit:user",
+  ],
+  销售经理: [
+    ...salesManagerPages.map((page) => `view:${page}` as const),
     "execute:ai",
   ],
-  清算岗: [
-    "view:workspace",
-    "view:customers",
-    "view:transactions",
-    "view:risks",
-    "view:assistant",
-    "operate:queue",
-    "approve:operation",
-    "execute:ai",
-  ],
-  配置岗: [
-    "view:workspace",
-    "view:customers",
-    "view:configs",
-    "view:risks",
-    "view:assistant",
-    "operate:queue",
-    "edit:config",
-    "approve:config",
-    "execute:ai",
-  ],
-  风控岗: [
-    "view:workspace",
-    "view:customers",
-    "view:transactions",
-    "view:risks",
-    "view:assistant",
-    "operate:queue",
-    "approve:operation",
-    "execute:ai",
-  ],
-  管理者: [
-    "view:workspace",
-    "view:customers",
-    "view:transactions",
-    "view:risks",
-    "view:performance",
-    "view:opportunities",
-    "view:assistant",
-    "view:integration",
-    "view:all-data",
-    "execute:ai",
-  ],
-  系统管理员: [
-    ...allPages.map((page) => `view:${page}` as const),
-    "operate:queue",
-    "approve:operation",
-    "edit:config",
-    "approve:config",
+  销售总监: [
+    ...businessManagementPages.map((page) => `view:${page}` as const),
     "execute:ai",
     "view:all-data",
+    "manage:users",
+    "edit:user",
+  ],
+  业务主管: [
+    ...businessManagementBasePermissions,
+    "create:user",
+    "edit:user",
+    "delete:user",
   ],
 };
 
-const roleScope: Record<UserRole, CurrentUser["dataScope"]> = {
-  运营岗: "所属团队",
-  清算岗: "全机构",
-  配置岗: "全机构",
-  风控岗: "全机构",
-  管理者: "全机构",
-  系统管理员: "全系统",
+export const roleScope: Record<UserRole, CurrentUser["dataScope"]> = {
+  运营: "全机构",
+  销售经理: "关联客户与商机",
+  销售总监: "全机构",
+  业务主管: "全机构",
 };
 
 export const roles = Object.keys(rolePermissions) as UserRole[];
 
+export function getRolePermissions(role: UserRole) {
+  return rolePermissions[role];
+}
+
 export function buildUser(role: UserRole): CurrentUser {
   return {
     id: `USER-${role}`,
-    name: role === "管理者" ? "沈知远" : role === "系统管理员" ? "系统管理员" : `${role}用户`,
+    name: role === "销售经理" ? "陈明" : role === "销售总监" ? "沈知远" : role === "业务主管" ? "周岚" : "运营用户",
     role,
     dataScope: roleScope[role],
     permissions: rolePermissions[role],

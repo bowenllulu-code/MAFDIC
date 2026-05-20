@@ -10,6 +10,8 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
+  UserCircle,
+  Users,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildEmailPreview, buildOrderStatusPreview, buildReportPreview, buildScheduledTaskPreview } from "./actionPreviews";
@@ -17,7 +19,7 @@ import { apiModeLabel, createConsoleApiClient } from "./apiClientFactory";
 import { snapshotFromProvider, type ApiMode, type ApiResponse, type ConsoleDataSnapshot } from "./adapters";
 import { ActionPreviewModal, DetailDrawer, GlobalAssistantDrawer } from "./components/overlays";
 import { mockProvider } from "./mockProvider";
-import { buildUser, can, canView, roles } from "./permissions";
+import { buildUser, can, canView, roles, roleScope } from "./permissions";
 import {
   AssistantPage,
   ConfigsPage,
@@ -27,9 +29,10 @@ import {
   PerformancePage,
   RisksPage,
   TransactionsPage,
+  UserCenterPage,
   WorkspacePage,
 } from "./pages/consolePages";
-import type { ActionPreview, AgentTask, DrawerState, OperationRecord, PageId, UserRole } from "./domain";
+import type { ActionPreview, AgentTask, DrawerState, OperationRecord, PageId, SystemUser, UserRole } from "./domain";
 
 const initialData = snapshotFromProvider(mockProvider);
 
@@ -43,6 +46,15 @@ const navigation: Array<{ id: PageId; label: string; icon: typeof Gauge }> = [
   { id: "opportunities", label: "商机归因", icon: BriefcaseBusiness },
   { id: "assistant", label: "AI 助手", icon: Bot },
   { id: "integration", label: "接入准备", icon: PlugZap },
+  { id: "users", label: "用户中心", icon: Users },
+];
+
+const initialSystemUsers: SystemUser[] = [
+  { id: "SU001", name: "林越", loginName: "ops.lin", role: "运营", department: "运营中心", status: "启用", lastLogin: "2026-05-20 09:10", dataScope: "全机构" },
+  { id: "SU002", name: "陈明", loginName: "sales.chen", role: "销售经理", department: "机构销售一部", status: "启用", lastLogin: "2026-05-20 08:52", dataScope: "关联客户与商机" },
+  { id: "SU003", name: "沈知远", loginName: "director.shen", role: "销售总监", department: "机构销售部", status: "启用", lastLogin: "2026-05-19 18:21", dataScope: "全机构" },
+  { id: "SU004", name: "周岚", loginName: "biz.zhou", role: "业务主管", department: "代销业务部", status: "启用", lastLogin: "2026-05-19 17:43", dataScope: "全机构" },
+  { id: "SU005", name: "停用销售经理", loginName: "sales.locked", role: "销售经理", department: "机构销售二部", status: "锁定", lastLogin: "2026-05-18 14:20", dataScope: "关联客户与商机" },
 ];
 
 type ChatMessage = {
@@ -51,9 +63,63 @@ type ChatMessage = {
   text: string;
 };
 
+function LoginPage({
+  users,
+  selectedUserId,
+  setSelectedUserId,
+  login,
+}: {
+  users: SystemUser[];
+  selectedUserId: string;
+  setSelectedUserId: (id: string) => void;
+  login: () => void;
+}) {
+  const selected = users.find((user) => user.id === selectedUserId) ?? users[0];
+  return (
+    <main className="login-shell">
+      <section className="login-panel">
+        <div className="login-brand">
+          <div>MA</div>
+          <span>
+            <strong>MAFDIC</strong>
+            <em>Multi-Agent Fund Distribution Insight Claw</em>
+          </span>
+        </div>
+        <div className="login-copy">
+          <span>系统登录</span>
+          <h1>基金代销运营工作台</h1>
+          <p>选择一个 mock 用户进入系统，后续可替换为真实统一认证、单点登录和权限中心。</p>
+        </div>
+        <label className="login-field">
+          <span>登录用户</span>
+          <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)}>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>{user.name} · {user.role}</option>
+            ))}
+          </select>
+        </label>
+        <div className="login-preview">
+          <div><span>账号</span><strong>{selected.loginName}</strong></div>
+          <div><span>角色</span><strong>{selected.role}</strong></div>
+          <div><span>部门</span><strong>{selected.department}</strong></div>
+          <div><span>数据范围</span><strong>{selected.dataScope}</strong></div>
+        </div>
+        <button className="login-button" disabled={selected.status !== "启用"} onClick={login}>
+          {selected.status === "启用" ? "进入系统" : `账号${selected.status}`}
+        </button>
+      </section>
+    </main>
+  );
+}
+
 function App() {
   const [activePage, setActivePage] = useState<PageId>("workspace");
-  const [selectedRole, setSelectedRole] = useState<UserRole>("系统管理员");
+  const [selectedRole, setSelectedRole] = useState<UserRole>("运营");
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>(initialSystemUsers);
+  const [selectedLoginUserId, setSelectedLoginUserId] = useState(initialSystemUsers[0].id);
+  const [currentAccountId, setCurrentAccountId] = useState(initialSystemUsers[0].id);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [apiMode, setApiMode] = useState<ApiMode>("mock");
   const [consoleData, setConsoleData] = useState<ConsoleDataSnapshot>(initialData);
   const [apiState, setApiState] = useState<"loading" | "ready" | "error">("loading");
@@ -72,7 +138,16 @@ function App() {
     },
   ]);
   const current = useMemo(() => navigation.find((item) => item.id === activePage), [activePage]);
-  const currentUser = useMemo(() => buildUser(selectedRole), [selectedRole]);
+  const currentAccount = useMemo(() => systemUsers.find((user) => user.id === currentAccountId) ?? systemUsers[0], [currentAccountId, systemUsers]);
+  const currentUser = useMemo(() => {
+    const user = buildUser(selectedRole);
+    return {
+      ...user,
+      id: currentAccount.id,
+      name: currentAccount.name,
+      dataScope: currentAccount.role === selectedRole ? currentAccount.dataScope : roleScope[selectedRole],
+    };
+  }, [currentAccount, selectedRole]);
   const apiClient = useMemo(() => createConsoleApiClient(apiMode), [apiMode]);
   const loadModularConsoleData = useCallback(async (): Promise<ApiResponse<ConsoleDataSnapshot>> => {
     const [
@@ -316,6 +391,34 @@ function App() {
       },
     ]);
   };
+  const login = () => {
+    const nextAccount = systemUsers.find((user) => user.id === selectedLoginUserId) ?? systemUsers[0];
+    if (nextAccount.status !== "启用") return;
+    setCurrentAccountId(nextAccount.id);
+    setSelectedRole(nextAccount.role);
+    setIsAuthenticated(true);
+    setActivePage("workspace");
+    setShowProfile(false);
+    setAssistantOpen(false);
+  };
+  const logout = () => {
+    setIsAuthenticated(false);
+    setAssistantOpen(false);
+    setDrawer(null);
+    setActionPreview(null);
+    setShowProfile(false);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <LoginPage
+        users={systemUsers}
+        selectedUserId={selectedLoginUserId}
+        setSelectedUserId={setSelectedLoginUserId}
+        login={login}
+      />
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -374,6 +477,43 @@ function App() {
             <button title="刷新 Mock API 数据" onClick={() => void loadConsoleData()}><RefreshCw size={18} /></button>
             <button title="全局搜索"><Search size={18} /></button>
             <button title="AI 对话" disabled={!can(currentUser, "execute:ai")} onClick={() => setAssistantOpen(true)}><Bot size={18} /></button>
+            <div className="account-menu">
+              <button
+                className="account-button"
+                title="登录信息"
+                onClick={() => setShowProfile((visible) => !visible)}
+              >
+                <UserCircle size={18} />
+                <span>
+                  <strong>{currentAccount.name}</strong>
+                  <em>{currentUser.role}</em>
+                </span>
+              </button>
+              {showProfile ? (
+                <div className="account-popover">
+                  <div className="profile-card">
+                    <UserCircle size={28} />
+                    <div>
+                      <strong>{currentAccount.name}</strong>
+                      <span>{currentAccount.loginName}</span>
+                    </div>
+                  </div>
+                  <div className="profile-facts">
+                    <div><span>角色</span><strong>{currentUser.role}</strong></div>
+                    <div><span>部门</span><strong>{currentAccount.department}</strong></div>
+                    <div><span>数据范围</span><strong>{currentUser.dataScope}</strong></div>
+                    <div><span>最近登录</span><strong>{currentAccount.lastLogin}</strong></div>
+                  </div>
+                  <div className="account-actions">
+                    <button onClick={() => {
+                      setActivePage("users");
+                      setShowProfile(false);
+                    }}>个人信息</button>
+                    <button onClick={logout}>退出系统</button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
         {apiState === "loading" ? <div className="api-banner">正在从 Mock API 拉取业务快照...</div> : null}
@@ -448,6 +588,22 @@ function App() {
             />
           )}
           {activePage === "integration" && <IntegrationPage apiMode={apiMode} data={consoleData} />}
+          {activePage === "users" && (
+            <UserCenterPage
+              users={systemUsers}
+              currentUser={currentUser}
+              navigationItems={navigation.map(({ id, label }) => ({ id, label }))}
+              createUser={(user) => setSystemUsers((currentUsers) => [user, ...currentUsers])}
+              updateUser={(id, patch) => {
+                setSystemUsers((currentUsers) => currentUsers.map((user) => (user.id === id ? { ...user, ...patch } : user)));
+                if (id === currentAccountId && patch.role) setSelectedRole(patch.role);
+              }}
+              deleteUser={(id) => {
+                if (id === currentAccountId) return;
+                setSystemUsers((currentUsers) => currentUsers.filter((user) => user.id !== id));
+              }}
+            />
+          )}
         </div>
       </main>
       <DetailDrawer

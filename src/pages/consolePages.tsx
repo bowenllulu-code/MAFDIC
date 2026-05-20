@@ -5,21 +5,25 @@ import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
   ClipboardList,
+  Pencil,
   Layers3,
   Plus,
   PlugZap,
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
+  Users,
+  X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { buildEmailPreview, buildOrderStatusPreview, buildReportPreview, buildRiskExplanationPreview, buildScheduledTaskPreview } from "../actionPreviews";
 import { DataTable, MetricGrid, OperationQueue, PageHeader, PermissionNotice, StatusBadge, TextButton } from "../components/common";
 import { statusLabel } from "../constants";
 import type { ApiMode, ConsoleDataSnapshot } from "../adapters";
-import type { ActionPreview, AgentTask, ConfigItem, CurrentUser, OperationRecord, PageId } from "../domain";
+import type { ActionPreview, AgentTask, ConfigItem, CurrentUser, OperationRecord, PageId, Permission, SystemUser, UserRole } from "../domain";
 import { formatMoney } from "../mockData";
-import { can } from "../permissions";
+import { allPages, can, getRolePermissions, roleScope, roles } from "../permissions";
 
 export function WorkspacePage({
   data,
@@ -1517,6 +1521,298 @@ export function IntegrationPage({ apiMode, data }: { apiMode: ApiMode; data: Con
             <div><strong>轻量映射留前端</strong><span>只保留字段改名、状态展示、空值兜底和当前页渲染。</span></div>
             <div><strong>重映射进 BFF</strong><span>分页、筛选、权限、状态归一、多接口聚合和缓存由 BFF 承担。</span></div>
             <div><strong>高成本计算异步化</strong><span>归因、报表、资产解释等高成本场景使用预计算或物化快照。</span></div>
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
+export function UserCenterPage({
+  users,
+  currentUser,
+  navigationItems,
+  createUser,
+  updateUser,
+  deleteUser,
+}: {
+  users: SystemUser[];
+  currentUser: CurrentUser;
+  navigationItems: Array<{ id: PageId; label: string }>;
+  createUser: (user: SystemUser) => void;
+  updateUser: (id: string, patch: Partial<SystemUser>) => void;
+  deleteUser: (id: string) => void;
+}) {
+  const [keyword, setKeyword] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"全部" | UserRole>("全部");
+  const [statusFilter, setStatusFilter] = useState<"全部" | SystemUser["status"]>("全部");
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [draftUser, setDraftUser] = useState<Omit<SystemUser, "id" | "lastLogin">>({
+    name: "",
+    loginName: "",
+    role: "销售经理",
+    department: "",
+    status: "启用",
+    dataScope: roleScope["销售经理"],
+  });
+  const enabledUsers = users.filter((user) => user.status === "启用").length;
+  const lockedUsers = users.filter((user) => user.status === "锁定").length;
+  const fullScopeRoles = roles.filter((role) => roleScope[role] === "全机构" || roleScope[role] === "全系统").length;
+  const currentAccount = users.find((user) => user.id === currentUser.id);
+  const menuLabelMap = new Map(navigationItems.map((item) => [item.id, item.label]));
+  const canCreateUser = can(currentUser, "create:user");
+  const canEditUser = can(currentUser, "edit:user");
+  const canDeleteUser = can(currentUser, "delete:user");
+  const canManageUsers = can(currentUser, "manage:users");
+  const permissionLabels: Array<{ permission: Permission; label: string }> = [
+    { permission: "operate:queue", label: "队列操作" },
+    { permission: "approve:operation", label: "人工确认" },
+    { permission: "edit:config", label: "配置编辑" },
+    { permission: "approve:config", label: "配置审批" },
+    { permission: "execute:ai", label: "AI 动作" },
+    { permission: "view:all-data", label: "全量数据" },
+    { permission: "manage:users", label: "用户管理" },
+  ];
+  const statusClass = (status: SystemUser["status"]) => {
+    if (status === "启用") return "status-active";
+    if (status === "锁定") return "status-warning";
+    return "status-closed";
+  };
+  const roleMenuLabels = (role: UserRole) => {
+    const permissions = getRolePermissions(role);
+    return allPages
+      .filter((page) => permissions.includes(`view:${page}`))
+      .map((page) => menuLabelMap.get(page) ?? page)
+      .join(" / ");
+  };
+  const roleFormLabels = (role: UserRole) => {
+    const permissions = getRolePermissions(role);
+    const labels = permissionLabels
+      .filter((item) => permissions.includes(item.permission))
+      .map((item) => item.label);
+    return labels.length > 0 ? labels.join(" / ") : "仅查看";
+  };
+  const riskLabels = (role: UserRole) => {
+    const permissions = getRolePermissions(role);
+    const labels = [
+      permissions.includes("manage:users") ? "用户与权限变更" : null,
+      permissions.includes("approve:config") ? "配置审批生效" : null,
+      permissions.includes("view:all-data") ? "全机构数据查看" : null,
+      permissions.includes("execute:ai") ? "AI 动作生成" : null,
+    ].filter(Boolean);
+    return labels.length > 0 ? labels.join(" / ") : "无高风险动作";
+  };
+  const visibleUsers = users.filter((user) => {
+    const text = `${user.name}${user.loginName}${user.department}${user.role}`.toLowerCase();
+    const matchesKeyword = text.includes(keyword.trim().toLowerCase());
+    const matchesRole = roleFilter === "全部" || user.role === roleFilter;
+    const matchesStatus = statusFilter === "全部" || user.status === statusFilter;
+    return matchesKeyword && matchesRole && matchesStatus;
+  });
+  const resetDraft = () => {
+    setEditingUserId(null);
+    setDraftUser({
+      name: "",
+      loginName: "",
+      role: "销售经理",
+      department: "",
+      status: "启用",
+      dataScope: roleScope["销售经理"],
+    });
+  };
+  const startEdit = (user: SystemUser) => {
+    setEditingUserId(user.id);
+    setDraftUser({
+      name: user.name,
+      loginName: user.loginName,
+      role: user.role,
+      department: user.department,
+      status: user.status,
+      dataScope: user.dataScope,
+    });
+  };
+  const updateDraftRole = (role: UserRole) => {
+    setDraftUser((draft) => ({ ...draft, role, dataScope: roleScope[role] }));
+  };
+  const saveDraft = () => {
+    if (!draftUser.name.trim() || !draftUser.loginName.trim() || !draftUser.department.trim()) return;
+    if (editingUserId) {
+      if (!canEditUser) return;
+      updateUser(editingUserId, draftUser);
+      resetDraft();
+      return;
+    }
+    if (!canCreateUser) return;
+    createUser({
+      ...draftUser,
+      id: `SU${String(Date.now()).slice(-6)}`,
+      lastLogin: "-",
+    });
+    resetDraft();
+  };
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Identity & Access"
+        title="用户中心"
+        description="操作指引：先维护运营、销售经理、销售总监和业务主管，再核对菜单权限、表单权限与数据范围；销售经理仅管理关联客户、商机和营收。"
+      />
+      <div className="metric-grid">
+        <article className="metric-card"><span>系统用户</span><strong>{users.length}</strong><em className="metric-neutral">含运营和销售管理账号</em></article>
+        <article className="metric-card"><span>启用账号</span><strong>{enabledUsers}</strong><em className="metric-good">可登录系统</em></article>
+        <article className="metric-card"><span>锁定账号</span><strong>{lockedUsers}</strong><em className="metric-risk">禁止登录</em></article>
+        <article className="metric-card"><span>全量角色</span><strong>{fullScopeRoles}</strong><em className="metric-neutral">可管理全部客户与商机</em></article>
+      </div>
+      <div className="content-grid">
+        {!can(currentUser, "manage:users") ? (
+          <section className="span-12">
+            <PermissionNotice title="权限维护受限" message={`${currentUser.role} 当前仅可查看个人登录信息，不能维护用户、角色和权限。`} />
+          </section>
+        ) : null}
+        <section className="panel span-4">
+          <div className="panel-title">
+            <h2>当前登录信息</h2>
+            <Users size={18} />
+          </div>
+          <div className="profile-summary">
+            <strong>{currentAccount?.name ?? currentUser.name}</strong>
+            <span>{currentAccount?.loginName ?? currentUser.id}</span>
+            <div>
+              <em>{currentUser.role}</em>
+              <em>{currentUser.dataScope}</em>
+            </div>
+          </div>
+          <div className="detail-stack">
+            <span>部门：{currentAccount?.department ?? "-"}</span>
+            <span>账号状态：{currentAccount?.status ?? "-"}</span>
+            <span>最近登录：{currentAccount?.lastLogin ?? "-"}</span>
+          </div>
+        </section>
+        <section className="panel span-8">
+          <div className="panel-title">
+            <h2>系统用户</h2>
+            <span className="status status-pending">Mock 用户池</span>
+          </div>
+          <div className="filter-row">
+            <input
+              className="control-input"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder="搜索姓名、账号、部门或角色"
+            />
+            <select className="control-input" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as "全部" | UserRole)}>
+              <option value="全部">全部角色</option>
+              {roles.map((role) => <option key={role} value={role}>{role}</option>)}
+            </select>
+            <select className="control-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "全部" | SystemUser["status"])}>
+              <option value="全部">全部状态</option>
+              <option value="启用">启用</option>
+              <option value="停用">停用</option>
+              <option value="锁定">锁定</option>
+            </select>
+          </div>
+          <DataTable
+            columns={["姓名", "登录账号", "部门", "角色", "状态", "数据范围", "最近登录", "操作"]}
+            rows={visibleUsers.map((user) => [
+              user.name,
+              user.loginName,
+              user.department,
+              user.role,
+              <span className={`status ${statusClass(user.status)}`}>{user.status}</span>,
+              user.dataScope,
+              user.lastLogin,
+              canManageUsers ? (
+                <div className="table-actions">
+                  <button title="编辑用户" disabled={!canEditUser} onClick={() => startEdit(user)}><Pencil size={14} /></button>
+                  <button title="删除用户" disabled={!canDeleteUser || user.id === currentUser.id} onClick={() => deleteUser(user.id)}><Trash2 size={14} /></button>
+                </div>
+              ) : "无权限",
+            ])}
+          />
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>{editingUserId ? "编辑用户" : "新增用户"}</h2>
+            <span className="status status-draft">按角色权限控制</span>
+          </div>
+          <div className="user-form-grid">
+            <label>
+              <span>姓名</span>
+              <input value={draftUser.name} disabled={editingUserId ? !canEditUser : !canCreateUser} onChange={(event) => setDraftUser((draft) => ({ ...draft, name: event.target.value }))} placeholder="输入用户姓名" />
+            </label>
+            <label>
+              <span>登录账号</span>
+              <input value={draftUser.loginName} disabled={editingUserId ? !canEditUser : !canCreateUser} onChange={(event) => setDraftUser((draft) => ({ ...draft, loginName: event.target.value }))} placeholder="输入登录账号" />
+            </label>
+            <label>
+              <span>部门</span>
+              <input value={draftUser.department} disabled={editingUserId ? !canEditUser : !canCreateUser} onChange={(event) => setDraftUser((draft) => ({ ...draft, department: event.target.value }))} placeholder="输入所属部门" />
+            </label>
+            <label>
+              <span>角色</span>
+              <select value={draftUser.role} disabled={editingUserId ? !canEditUser : !canCreateUser} onChange={(event) => updateDraftRole(event.target.value as UserRole)}>
+                {roles.map((role) => <option key={role} value={role}>{role}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>账号状态</span>
+              <select value={draftUser.status} disabled={editingUserId ? !canEditUser : !canCreateUser} onChange={(event) => setDraftUser((draft) => ({ ...draft, status: event.target.value as SystemUser["status"] }))}>
+                <option value="启用">启用</option>
+                <option value="停用">停用</option>
+                <option value="锁定">锁定</option>
+              </select>
+            </label>
+            <label>
+              <span>数据范围</span>
+              <input value={draftUser.dataScope} disabled />
+            </label>
+          </div>
+          <div className="form-actions">
+            <button disabled={editingUserId ? !canEditUser : !canCreateUser} onClick={saveDraft}>
+              <Plus size={15} />
+              {editingUserId ? "保存修改" : "新增用户"}
+            </button>
+            <button onClick={resetDraft}><X size={15} />清空</button>
+          </div>
+          {!canCreateUser && !editingUserId ? (
+            <PermissionNotice title="新增受限" message={`${currentUser.role} 当前没有新增用户权限，可根据权限配置开放 create:user。`} />
+          ) : null}
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>角色权限矩阵</h2>
+            <ShieldCheck size={18} />
+          </div>
+          <DataTable
+            columns={["角色", "数据范围", "菜单权限", "表单/动作权限", "高风险边界"]}
+            rows={roles.map((role) => [
+              role,
+              roleScope[role],
+              roleMenuLabels(role),
+              roleFormLabels(role),
+              riskLabels(role),
+            ])}
+          />
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>表单权限口径</h2>
+            <span className="status status-draft">后续可接入真实权限中心</span>
+          </div>
+          <div className="permission-card-grid">
+            {permissionLabels.map((item) => {
+              const ownerRoles = roles.filter((role) => getRolePermissions(role).includes(item.permission));
+              return (
+                <article className="permission-card" key={item.permission}>
+                  <span>{item.label}</span>
+                  <strong>{item.permission}</strong>
+                  <div className="permission-chip-list">
+                    {ownerRoles.map((role) => <em key={role}>{role}</em>)}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       </div>
