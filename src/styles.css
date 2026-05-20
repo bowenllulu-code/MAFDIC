@@ -1481,16 +1481,14 @@ tr:last-child td {
 }
 
 .drawer-backdrop,
-.preview-backdrop,
-.assistant-backdrop {
+.preview-backdrop {
   position: fixed;
   inset: 0;
   z-index: 50;
   background: rgba(16, 24, 40, 0.36);
 }
 
-.drawer-backdrop,
-.assistant-backdrop {
+.drawer-backdrop {
   display: flex;
   justify-content: flex-end;
 }
@@ -1511,17 +1509,56 @@ tr:last-child td {
   overflow: auto;
 }
 
+.assistant-float-layer {
+  position: fixed;
+  top: 76px;
+  right: 24px;
+  z-index: 45;
+  width: min(520px, calc(100vw - 48px));
+  max-height: calc(100vh - 100px);
+  min-height: 460px;
+  pointer-events: none;
+}
+
 .assistant-drawer {
-  position: relative;
-  width: min(520px, 100vw);
-  min-height: 100%;
+  position: absolute;
+  inset: 0;
   display: grid;
   grid-template-rows: auto auto minmax(180px, 1fr) auto auto auto;
   gap: 14px;
   padding: 28px;
+  border: 1px solid #e4e9f0;
+  border-radius: 12px;
   background: #ffffff;
-  box-shadow: -16px 0 32px rgba(16, 24, 40, 0.18);
+  box-shadow: 0 20px 56px rgba(16, 24, 40, 0.22);
   overflow: auto;
+  pointer-events: auto;
+}
+
+.assistant-resize-handle {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 68px;
+  height: 14px;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.assistant-resize-handle::before {
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  width: 48px;
+  height: 4px;
+  border-radius: 999px;
+  background: #d0d7e2;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.assistant-resize-handle:hover::before {
+  background: #2e90fa;
 }
 
 .assistant-drawer-header {
@@ -1668,11 +1705,19 @@ tr:last-child td {
   opacity: 0.5;
 }
 
-.global-assistant-button {
+.global-assistant-tab {
   position: fixed;
-  right: 24px;
+  right: 0;
   bottom: 24px;
   z-index: 20;
+  width: 88px;
+  height: 56px;
+}
+
+.global-assistant-button {
+  position: absolute;
+  right: -18px;
+  bottom: 4px;
   width: 48px;
   height: 48px;
   display: grid;
@@ -1681,9 +1726,17 @@ tr:last-child td {
   background: #175cd3;
   color: #ffffff;
   box-shadow: 0 16px 34px rgba(23, 92, 211, 0.28);
+  transition: right 160ms ease, transform 160ms ease, background 160ms ease;
 }
 
-.global-assistant-button:hover {
+.global-assistant-tab:hover .global-assistant-button,
+.global-assistant-tab:focus-within .global-assistant-button,
+.global-assistant-button.active {
+  right: 24px;
+}
+
+.global-assistant-button:hover,
+.global-assistant-button.active {
   background: #1849a9;
 }
 

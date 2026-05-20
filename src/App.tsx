@@ -465,9 +465,16 @@ function App() {
         save={saveActionPreview}
         canSave={can(currentUser, "execute:ai")}
       />
-      <button className="global-assistant-button" title="AI 对话" disabled={!can(currentUser, "execute:ai")} onClick={() => setAssistantOpen(true)}>
-        <Bot size={20} />
-      </button>
+      <div className="global-assistant-tab">
+        <button
+          className={`global-assistant-button ${assistantOpen ? "active" : ""}`}
+          title={assistantOpen ? "关闭 AI 对话" : "AI 对话"}
+          disabled={!can(currentUser, "execute:ai")}
+          onClick={() => setAssistantOpen((open) => !open)}
+        >
+          <Bot size={20} />
+        </button>
+      </div>
       <GlobalAssistantDrawer
         open={assistantOpen}
         close={() => setAssistantOpen(false)}

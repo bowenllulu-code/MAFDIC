@@ -338,6 +338,7 @@ export function GlobalAssistantDrawer({
   canExecute: boolean;
 }) {
   const [draft, setDraft] = useState("");
+  const [height, setHeight] = useState(720);
   if (!open) return null;
   const suggestions = [
     "解释当前页面的关键异常",
@@ -352,10 +353,27 @@ export function GlobalAssistantDrawer({
     onSend(nextMessage);
     setDraft("");
   };
+  const startResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    const startY = event.clientY;
+    const startHeight = height;
+    const maxHeight = window.innerHeight - 112;
+    const minHeight = 460;
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const nextHeight = Math.min(maxHeight, Math.max(minHeight, startHeight + moveEvent.clientY - startY));
+      setHeight(nextHeight);
+    };
+    const onPointerUp = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  };
 
   return (
-    <div className="assistant-backdrop" onClick={close}>
-      <aside className="assistant-drawer" onClick={(event) => event.stopPropagation()}>
+    <div className="assistant-float-layer" style={{ height }}>
+      <aside className="assistant-drawer">
+        <div className="assistant-resize-handle" onPointerDown={startResize} title="拖动调整高度" />
         <button className="drawer-close" title="关闭" onClick={close}><X size={18} /></button>
         <div className="assistant-drawer-header">
           <span><Bot size={17} /> 全局 AI 助手</span>
