@@ -1,4 +1,5 @@
-import { X } from "lucide-react";
+import { Bot, Send, X } from "lucide-react";
+import { useState } from "react";
 import { buildEmailPreview, buildOrderStatusPreview, buildRiskExplanationPreview } from "../actionPreviews";
 import type { ConsoleDataSnapshot } from "../adapters";
 import { statusLabel } from "../constants";
@@ -307,6 +308,95 @@ export function ActionPreviewModal({
           </button>
         </div>
       </section>
+    </div>
+  );
+}
+
+export function GlobalAssistantDrawer({
+  open,
+  close,
+  pageLabel,
+  role,
+  dataScope,
+  apiMode,
+  selectedCustomerName,
+  messages,
+  onSend,
+  createPreview,
+  canExecute,
+}: {
+  open: boolean;
+  close: () => void;
+  pageLabel: string;
+  role: string;
+  dataScope: string;
+  apiMode: string;
+  selectedCustomerName: string;
+  messages: Array<{ id: string; role: "user" | "assistant"; text: string }>;
+  onSend: (message: string) => void;
+  createPreview: (prompt: string) => void;
+  canExecute: boolean;
+}) {
+  const [draft, setDraft] = useState("");
+  if (!open) return null;
+  const suggestions = [
+    "解释当前页面的关键异常",
+    "生成本周机构客户经营报告",
+    "草拟风险说明邮件",
+    "创建每日异常交易推送",
+  ];
+  const submit = (message = draft) => {
+    if (!canExecute) return;
+    const nextMessage = message.trim();
+    if (!nextMessage) return;
+    onSend(nextMessage);
+    setDraft("");
+  };
+
+  return (
+    <div className="assistant-backdrop" onClick={close}>
+      <aside className="assistant-drawer" onClick={(event) => event.stopPropagation()}>
+        <button className="drawer-close" title="关闭" onClick={close}><X size={18} /></button>
+        <div className="assistant-drawer-header">
+          <span><Bot size={17} /> 全局 AI 助手</span>
+          <h2>对话与业务草稿</h2>
+          <p>可结合当前页面上下文回答问题，也可生成草稿进入人工确认链路。</p>
+        </div>
+        <div className="assistant-context-card">
+          <div><span>当前页面</span><strong>{pageLabel}</strong></div>
+          <div><span>当前客户</span><strong>{selectedCustomerName}</strong></div>
+          <div><span>角色权限</span><strong>{role} · {dataScope}</strong></div>
+          <div><span>数据源</span><strong>{apiMode}</strong></div>
+        </div>
+        <div className="assistant-message-list">
+          {messages.map((message) => (
+            <article className={`assistant-message assistant-message-${message.role}`} key={message.id}>
+              <span>{message.role === "assistant" ? "AI" : "你"}</span>
+              <p>{message.text}</p>
+            </article>
+          ))}
+        </div>
+        <div className="assistant-suggestion-row">
+          {suggestions.map((suggestion) => (
+            <button disabled={!canExecute} key={suggestion} onClick={() => submit(suggestion)}>{suggestion}</button>
+          ))}
+        </div>
+        <div className="assistant-compose">
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="询问当前页面、客户、交易、风险或商机，也可以要求生成草稿"
+            disabled={!canExecute}
+          />
+          <div>
+            <button disabled={!canExecute || !draft.trim()} onClick={() => createPreview(draft)}>生成草稿</button>
+            <button disabled={!canExecute || !draft.trim()} onClick={() => submit()}>
+              <Send size={15} /> 发送
+            </button>
+          </div>
+        </div>
+        {!canExecute ? <p className="assistant-permission-note">当前角色只能查看，不能发起 AI 对话或生成草稿。</p> : null}
+      </aside>
     </div>
   );
 }

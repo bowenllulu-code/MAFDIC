@@ -66,7 +66,7 @@ export function WorkspacePage({
       <PageHeader
         eyebrow="MAFDIC / Operations"
         title="综合工作台"
-        description="汇总今日运营状态、异常、报表、配置和 AI 建议，作为运营人员与管理者的统一入口。"
+        description="操作指引：先处理今日核心流程，再复核待办异常和 AI 建议；生成的说明、报表或任务会进入人工确认队列。"
       />
       <MetricGrid metrics={metrics} />
       <div className="content-grid">
@@ -179,7 +179,7 @@ export function CustomersPage({
       <PageHeader
         eyebrow="Customer 360"
         title="客户全景图"
-        description="围绕机构客户聚合账户、交易、持仓、收益、商机和风险，支撑客户维度下钻。"
+        description="操作指引：先选择左侧机构客户，再查看运营信号和对象关系；可下钻交易、风险、商机或资产明细继续处理。"
       />
       <div className="content-grid">
         <section className="panel span-4">
@@ -365,7 +365,7 @@ export function TransactionsPage({
       <PageHeader
         eyebrow="Transactions & Assets"
         title="交易与资产"
-        description="查询交易、确认状态、持仓资产、收益费用和基金行情，解释资产为什么变化。"
+        description="操作指引：先切换客户上下文并筛选交易状态，再核对确认卡点、资产影响和状态轨迹；必要时生成说明或查看关联风险。"
       />
       <div className="context-strip">
         <span>当前客户上下文：{selected.shortName}</span>
@@ -521,7 +521,7 @@ export function RisksPage({
       <PageHeader
         eyebrow="Risk Operations"
         title="风险异常"
-        description="集中展示告警、命中规则、原因解释、处置建议和闭环结果。"
+        description="操作指引：先按风险等级筛选事件，再核实当前卡点、关联订单和处置记录；处理说明或邮件草稿需送入人工确认。"
       />
       <div className="operation-strip">
         {(["全部", "high", "medium", "low"] as const).map((severity) => (
@@ -662,7 +662,7 @@ export function PerformancePage({
       <PageHeader
         eyebrow="Business Insight"
         title="经营分析"
-        description="为管理者提供资产、交易、收入、费用、客户贡献和商机转化的可下钻视图。"
+        description="操作指引：先看经营驾驶舱定位资产、交易、收入和风险变化，再下钻客户贡献、商机收入或生成管理报告。"
       />
       <MetricGrid metrics={metrics} />
       <div className="metric-grid">
@@ -950,7 +950,7 @@ export function ConfigsPage({
       <PageHeader
         eyebrow="Operational Configuration"
         title="运营配置"
-        description="承载垫资配置、垫资行、孳息规则、费用规则、版本、审批和配置审计。"
+        description="操作指引：先按配置类型和状态筛选，再查看校验结果、版本差异和影响范围；配置变更需进入审批或人工确认。"
       />
       <div className="metric-grid">
         <article className="metric-card"><span>配置总数</span><strong>{allConfigs.length}</strong><em className="metric-neutral">含草稿 {drafts.length} 条</em></article>
@@ -1097,7 +1097,7 @@ export function OpportunitiesPage({
       <PageHeader
         eyebrow="Opportunity Attribution"
         title="商机归因"
-        description="展示从销售拜访、商机创建、客户交易关联、持仓收入形成到业绩分配的可追溯链路。"
+        description="操作指引：先核对商机关联客户、交易归因比例和销售分配，再复核维护费、销售服务费和净贡献明细。"
       />
       <div className="metric-grid">
         <article className="metric-card"><span>商机预计金额</span><strong>{formatMoney(totalExpected)}</strong><em className="metric-neutral">3 条活跃链路</em></article>
@@ -1213,6 +1213,18 @@ export function AssistantPage({
   const externalDrafts = agentAuditLogs.filter((log) => log.externalEffect !== "无").length;
   const canExecuteAi = can(user, "execute:ai");
   const canApproveOperation = can(user, "approve:operation");
+  const actionTypes = ["异常解释", "报表", "邮件", "配置说明", "定时任务"] as const;
+  const actionTypeSummary = actionTypes.map((type) => ({
+    type,
+    count: assistantActions.filter((action) => action.type === type).length,
+    needsApproval: assistantActions.filter((action) => action.type === type && action.requiresApproval).length,
+  }));
+  const activeAgentFlow = [
+    { title: "读取上下文", desc: "从客户、交易、风险、商机或经营分析页带入业务对象。" },
+    { title: "生成草稿", desc: "只生成解释、报表、邮件、配置说明或定时任务草稿。" },
+    { title: "人工确认", desc: "涉及外发、审批、配置生效或调度启用时必须进入人工队列。" },
+    { title: "审计留痕", desc: "记录输入数据、输出物、确认人和外部影响范围。" },
+  ];
   const previewFromAction = (actionId: string) => {
     if (actionId === "A001") {
       const risk = risks[0];
@@ -1243,7 +1255,7 @@ export function AssistantPage({
       <PageHeader
         eyebrow="Multi-Agent Workspace"
         title="AI 助手"
-        description="用 mock 工作流验证问答、分析、报表、定时任务、邮件和配置说明的人审模式。"
+        description="操作指引：先选择要生成的 AI 动作预览，再检查业务上下文、执行步骤和审批要求；确认后送入人工队列。"
       />
       <div className="metric-grid">
         <article className="metric-card"><span>Agent 任务</span><strong>{visibleAgentTasks.length}</strong><em className="metric-neutral">含运行时任务</em></article>
@@ -1252,6 +1264,36 @@ export function AssistantPage({
         <article className="metric-card"><span>外部草稿</span><strong>{externalDrafts}</strong><em className="metric-neutral">无直接外发</em></article>
       </div>
       <div className="content-grid">
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>Agent 工作模式</h2>
+            <ShieldCheck size={18} />
+          </div>
+          <div className="agent-flow-grid">
+            {activeAgentFlow.map((item, index) => (
+              <article key={item.title}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{item.title}</strong>
+                <em>{item.desc}</em>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>动作分类</h2>
+            <span className="status status-pending">草稿优先</span>
+          </div>
+          <div className="agent-category-grid">
+            {actionTypeSummary.map((item) => (
+              <article key={item.type}>
+                <span>{item.type}</span>
+                <strong>{item.count} 个动作</strong>
+                <em>{item.needsApproval > 0 ? `${item.needsApproval} 个需要人审` : "仅生成解释草稿"}</em>
+              </article>
+            ))}
+          </div>
+        </section>
         <section className="panel span-5">
           <div className="panel-title">
             <h2>推荐问题</h2>
@@ -1293,7 +1335,7 @@ export function AssistantPage({
         </section>
         <section className="panel span-12">
           <div className="panel-title">
-            <h2>动作草稿与审批占位</h2>
+            <h2>人工确认队列</h2>
             <span className="status status-draft">mock 队列</span>
           </div>
           <OperationQueue
@@ -1392,7 +1434,7 @@ export function IntegrationPage({ apiMode, data }: { apiMode: ApiMode; data: Con
       <PageHeader
         eyebrow="API Integration Readiness"
         title="真实 API 接入准备"
-        description="在业务接口正式提供前，先固化接口模块、字段映射、阻塞点和联调验收清单。"
+        description="操作指引：先确认接口模块优先级、契约和字段映射状态，再跟进阻塞点、性能风险和联调验收清单。"
       />
       <div className="metric-grid">
         <article className="metric-card"><span>P0 接口模块</span><strong>{p0Modules}</strong><em className="metric-risk">优先联调</em></article>

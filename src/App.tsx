@@ -12,9 +12,10 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { buildEmailPreview, buildOrderStatusPreview, buildReportPreview, buildScheduledTaskPreview } from "./actionPreviews";
 import { apiModeLabel, createConsoleApiClient } from "./apiClientFactory";
 import { snapshotFromProvider, type ApiMode, type ApiResponse, type ConsoleDataSnapshot } from "./adapters";
-import { ActionPreviewModal, DetailDrawer } from "./components/overlays";
+import { ActionPreviewModal, DetailDrawer, GlobalAssistantDrawer } from "./components/overlays";
 import { mockProvider } from "./mockProvider";
 import { buildUser, can, canView, roles } from "./permissions";
 import {
@@ -44,6 +45,12 @@ const navigation: Array<{ id: PageId; label: string; icon: typeof Gauge }> = [
   { id: "integration", label: "接入准备", icon: PlugZap },
 ];
 
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
+
 function App() {
   const [activePage, setActivePage] = useState<PageId>("workspace");
   const [selectedRole, setSelectedRole] = useState<UserRole>("系统管理员");
@@ -56,6 +63,14 @@ function App() {
   const [actionPreview, setActionPreview] = useState<ActionPreview | null>(null);
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: "MSG-INIT",
+      role: "assistant",
+      text: "我可以结合当前页面上下文，帮你解释交易、风险、客户资产变化，或生成报表、邮件、定时任务草稿。",
+    },
+  ]);
   const current = useMemo(() => navigation.find((item) => item.id === activePage), [activePage]);
   const currentUser = useMemo(() => buildUser(selectedRole), [selectedRole]);
   const apiClient = useMemo(() => createConsoleApiClient(apiMode), [apiMode]);
@@ -257,6 +272,50 @@ function App() {
     setActionPreview(null);
     setActivePage(preview.type === "归因说明" ? "opportunities" : "workspace");
   };
+  const selectedCustomer = consoleData.customers.find((customer) => customer.id === selectedCustomerId) ?? consoleData.customers[0];
+  const buildPreviewFromPrompt = (prompt: string): ActionPreview => {
+    const text = prompt.toLowerCase();
+    const risk = consoleData.risks[0];
+    const order = consoleData.orders.find((item) => item.customerId === selectedCustomerId) ?? consoleData.orders[0];
+    if (prompt.includes("周报") || prompt.includes("报告") || prompt.includes("经营")) return buildReportPreview();
+    if (prompt.includes("定时") || prompt.includes("推送")) return buildScheduledTaskPreview();
+    if (prompt.includes("邮件")) return buildEmailPreview(risk);
+    if (prompt.includes("交易") || prompt.includes("确认") || text.includes("order")) return buildOrderStatusPreview(order, selectedCustomer?.shortName);
+    if (prompt.includes("商机") || prompt.includes("归因")) {
+      return {
+        type: "归因说明",
+        title: "商机收入归因说明",
+        context: `${current?.label ?? "当前页面"} / ${selectedCustomer?.shortName ?? "全机构"}`,
+        summary: "根据当前商机、交易归因比例、客户维护费和销售服务费，生成一份可人工复核的归因说明草稿。",
+        steps: ["读取商机、客户和关联交易", "拆分维护费、销售服务费和净贡献", "生成归因说明草稿，等待人工确认"],
+        requiresApproval: false,
+      };
+    }
+    return {
+      type: "异常解释",
+      title: "当前页面业务解释",
+      context: `${current?.label ?? "当前页面"} / ${selectedCustomer?.shortName ?? "全机构"}`,
+      summary: "基于当前页面上下文生成解释草稿，当前不会修改业务对象、提交审批或触发外部动作。",
+      steps: ["读取当前菜单和选中客户上下文", "整理关键业务对象和状态", "输出解释草稿供人工复核"],
+      requiresApproval: false,
+    };
+  };
+  const sendAssistantMessage = (message: string) => {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    const idSuffix = Date.now();
+    const preview = buildPreviewFromPrompt(trimmed);
+    const contextText = `${current?.label ?? "当前页面"}${selectedCustomer ? ` / ${selectedCustomer.shortName}` : ""}`;
+    setChatMessages((messages) => [
+      ...messages,
+      { id: `MSG-U-${idSuffix}`, role: "user", text: trimmed },
+      {
+        id: `MSG-A-${idSuffix}`,
+        role: "assistant",
+        text: `已结合 ${contextText} 生成建议：${preview.summary} 如需沉淀为业务动作，可以生成草稿并送入人工确认链路。`,
+      },
+    ]);
+  };
 
   return (
     <div className="app-shell">
@@ -314,7 +373,7 @@ function App() {
             <span className={`api-pill api-pill-${apiState}`}>{apiTrace}</span>
             <button title="刷新 Mock API 数据" onClick={() => void loadConsoleData()}><RefreshCw size={18} /></button>
             <button title="全局搜索"><Search size={18} /></button>
-            <button title="AI 助手" disabled={!canView(currentUser, "assistant")} onClick={() => goToPage("assistant")}><Bot size={18} /></button>
+            <button title="AI 对话" disabled={!can(currentUser, "execute:ai")} onClick={() => setAssistantOpen(true)}><Bot size={18} /></button>
           </div>
         </header>
         {apiState === "loading" ? <div className="api-banner">正在从 Mock API 拉取业务快照...</div> : null}
@@ -405,6 +464,25 @@ function App() {
         close={() => setActionPreview(null)}
         save={saveActionPreview}
         canSave={can(currentUser, "execute:ai")}
+      />
+      <button className="global-assistant-button" title="AI 对话" disabled={!can(currentUser, "execute:ai")} onClick={() => setAssistantOpen(true)}>
+        <Bot size={20} />
+      </button>
+      <GlobalAssistantDrawer
+        open={assistantOpen}
+        close={() => setAssistantOpen(false)}
+        pageLabel={current?.label ?? "当前页面"}
+        role={currentUser.role}
+        dataScope={currentUser.dataScope}
+        apiMode={apiModeLabel(apiMode)}
+        selectedCustomerName={selectedCustomer?.shortName ?? "未选择客户"}
+        messages={chatMessages}
+        onSend={sendAssistantMessage}
+        canExecute={can(currentUser, "execute:ai")}
+        createPreview={(prompt) => {
+          setActionPreview(buildPreviewFromPrompt(prompt));
+          setAssistantOpen(false);
+        }}
       />
     </div>
   );

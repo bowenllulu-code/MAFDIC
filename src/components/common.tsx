@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CheckCircle2, CircleX, Play, RotateCcw } from "lucide-react";
+import { CheckCircle2, CircleX, ClipboardCheck, Play, RotateCcw } from "lucide-react";
 import { statusLabel } from "../constants";
 import type { Metric, OperationRecord, Status } from "../domain";
 
@@ -8,13 +8,19 @@ export function StatusBadge({ status }: { status: Status }) {
 }
 
 export function PageHeader({ title, eyebrow, description }: { title: string; eyebrow: string; description: string }) {
+  const guidancePrefix = "操作指引：";
+  const isGuidance = description.startsWith(guidancePrefix);
+  const displayDescription = isGuidance ? description.slice(guidancePrefix.length) : description;
   return (
     <div className="page-header">
       <div>
         <span className="eyebrow">{eyebrow}</span>
         <h1>{title}</h1>
       </div>
-      <p>{description}</p>
+      <p className={isGuidance ? "page-guidance" : undefined}>
+        {isGuidance ? <ClipboardCheck aria-label="操作指引" size={16} /> : null}
+        <span>{displayDescription}</span>
+      </p>
     </div>
   );
 }
