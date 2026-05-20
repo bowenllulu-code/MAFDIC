@@ -54,6 +54,10 @@ export type Customer = {
   tags: string[];
   totalAsset: number;
   revenueYtd: number;
+  serviceTier: string;
+  investmentPreference: string;
+  operationFocus: string;
+  nextBestActions: string[];
 };
 
 export type TransactionOrder = {
@@ -66,6 +70,10 @@ export type TransactionOrder = {
   orderStatus: Status;
   confirmationStatus: Status;
   channel: string;
+  confirmationBlocker: string;
+  assetImpact: string;
+  settlementTrail: string[];
+  nextActions: string[];
 };
 
 export type Holding = {
@@ -89,13 +97,19 @@ export type RiskEvent = {
   status: Status;
   detectedAt: string;
   suggestion: string;
+  currentBlocker: string;
+  nextActions: string[];
+  handlingRecords: string[];
 };
 
 export type Opportunity = {
   id: string;
   name: string;
   customerId: string;
+  customerIds: string[];
   linkedOrderId?: string;
+  linkedOrders: { orderId: string; allocationRatio: number; note: string }[];
+  salesSplits: { salesName: string; role: string; ratio: number }[];
   stage: string;
   expectedAmount: number;
   probability: number;
@@ -108,6 +122,9 @@ export type OpportunityAttribution = {
   opportunityId: string;
   customerId: string;
   orderId: string;
+  opportunityAllocationRatio: number;
+  salesMaintenanceFee: number;
+  distributionServiceFee: number;
   revenueAmount: number;
   feeAmount: number;
   netContribution: number;

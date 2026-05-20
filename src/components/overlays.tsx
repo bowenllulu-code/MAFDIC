@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { buildEmailPreview } from "../actionPreviews";
+import { buildEmailPreview, buildOrderStatusPreview, buildRiskExplanationPreview } from "../actionPreviews";
 import type { ConsoleDataSnapshot } from "../adapters";
 import { statusLabel } from "../constants";
 import type { ActionPreview, ConfigItem, DrawerState, Opportunity, RiskEvent, TransactionOrder } from "../domain";
@@ -11,6 +11,7 @@ export function DetailDrawer({
   close,
   jumpToCustomer,
   openOrder,
+  openRisk,
   createPreview,
 }: {
   data: ConsoleDataSnapshot;
@@ -18,6 +19,7 @@ export function DetailDrawer({
   close: () => void;
   jumpToCustomer: (id: string) => void;
   openOrder: (id: string) => void;
+  openRisk: (id: string) => void;
   createPreview: (preview: ActionPreview) => void;
 }) {
   if (!drawer) return null;
@@ -26,7 +28,7 @@ export function DetailDrawer({
   const renderOrder = (order: TransactionOrder) => {
     const customer = customers.find((item) => item.id === order.customerId);
     const relatedRisk = risks.find((risk) => risk.relatedOrderId === order.id);
-    const relatedOpportunity = opportunities.find((opportunity) => opportunity.linkedOrderId === order.id);
+    const relatedOpportunity = opportunities.find((opportunity) => opportunity.linkedOrders.some((link) => link.orderId === order.id));
     return (
       <>
         <span className="eyebrow">Transaction</span>
@@ -40,28 +42,31 @@ export function DetailDrawer({
         <div className="drawer-section">
           <h3>状态轨迹</h3>
           <div className="timeline compact">
-            <div><strong>申请提交</strong><span>{order.applyDate} · {order.channel}</span></div>
-            <div><strong>TA 回执匹配</strong><span>{order.confirmationStatus === "warning" ? "回执未匹配，需复核申请与确认映射" : "回执已进入确认队列"}</span></div>
-            <div><strong>资产影响</strong><span>{order.tradeType === "申购" ? "预计增加客户持仓与资产规模" : "预计降低客户持仓与资产规模"}</span></div>
+            {order.settlementTrail.map((step) => {
+              const [title, ...content] = step.split(" · ");
+              return <div key={step}><strong>{title}</strong><span>{content.join(" · ") || order.channel}</span></div>;
+            })}
+            <div><strong>资产影响</strong><span>{order.assetImpact}</span></div>
+          </div>
+          <div className="drawer-note">
+            <strong>当前卡点</strong>
+            <span>{order.confirmationBlocker}</span>
           </div>
         </div>
         <div className="drawer-section">
           <h3>关联对象</h3>
           <div className="drawer-actions">
             <button onClick={() => jumpToCustomer(order.customerId)}>打开客户全景</button>
-            {relatedRisk && <button onClick={() => openOrder(order.id)}>刷新订单详情</button>}
-            <button onClick={() => createPreview({
-              type: "异常解释",
-              title: `${order.id}确认状态解释`,
-              context: `${customer?.shortName ?? "-"} / ${order.fundName}`,
-              summary: order.confirmationStatus === "warning"
-                ? "该订单存在确认异常，建议核对 TA 回执、申请单映射和清算记录。"
-                : "该订单确认链路当前无高风险异常，可生成状态说明供运营复核。",
-              steps: ["读取订单状态轨迹", "比对确认状态和清算记录", "生成状态解释草稿"],
-              requiresApproval: false,
-            })}>解释确认状态</button>
+            {relatedRisk && <button onClick={() => openRisk(relatedRisk.id)}>打开关联风险</button>}
+            <button onClick={() => createPreview(buildOrderStatusPreview(order, customer?.shortName))}>解释确认状态</button>
             {relatedOpportunity && <span>商机：{relatedOpportunity.name}</span>}
             {relatedRisk && <span>风险：{relatedRisk.title}</span>}
+          </div>
+        </div>
+        <div className="drawer-section">
+          <h3>下一步动作</h3>
+          <div className="action-chip-list">
+            {order.nextActions.map((action) => <span key={action}>{action}</span>)}
           </div>
         </div>
       </>
@@ -80,32 +85,41 @@ export function DetailDrawer({
       </div>
       <div className="drawer-section">
         <h3>AI 解释草案</h3>
-        <p>{risk.suggestion} 当前建议先完成事实核对，再生成处理说明和待办。</p>
+        <p>{risk.suggestion} 当前卡点：{risk.currentBlocker}</p>
+      </div>
+      <div className="drawer-section">
+        <h3>处置动作</h3>
+        <div className="action-chip-list">
+          {risk.nextActions.map((action) => <span key={action}>{action}</span>)}
+        </div>
+      </div>
+      <div className="drawer-section">
+        <h3>处置记录</h3>
+        <div className="timeline compact">
+          {risk.handlingRecords.map((record) => {
+            const [time, ...content] = record.split(" ");
+            return <div key={record}><strong>{time}</strong><span>{content.join(" ")}</span></div>;
+          })}
+        </div>
       </div>
       <div className="drawer-actions">
         <button onClick={() => jumpToCustomer(risk.relatedCustomerId)}>打开客户全景</button>
         {risk.relatedOrderId ? <button onClick={() => openOrder(risk.relatedOrderId as string)}>查看关联订单</button> : null}
-        <button onClick={() => createPreview({
-          type: "异常解释",
-          title: `${risk.title}处理说明`,
-          context: `${risk.relatedCustomer} / ${risk.triggeredRule}`,
-          summary: `${risk.suggestion} 当前动作仅生成处置说明草稿，不关闭风险事件。`,
-          steps: ["汇总风险事件和关联订单", "生成原因解释和处理建议", "草稿进入人工复核，不自动闭环"],
-          requiresApproval: false,
-        })}>生成处理说明</button>
+        <button onClick={() => createPreview(buildRiskExplanationPreview(risk))}>生成处理说明</button>
         <button onClick={() => createPreview(buildEmailPreview(risk))}>草拟邮件</button>
       </div>
     </>
   );
 
   const renderOpportunity = (opportunity: Opportunity) => {
-    const customer = customers.find((item) => item.id === opportunity.customerId);
+    const opportunityCustomers = customers.filter((item) => opportunity.customerIds.includes(item.id));
+    const attributionSummary = opportunity.linkedOrders.map((link) => `${link.orderId} · ${link.allocationRatio}%`).join(" / ");
     return (
       <>
         <span className="eyebrow">Opportunity Attribution</span>
         <h2>{opportunity.name}</h2>
         <div className="drawer-facts">
-          <div><span>客户</span><strong>{customer?.shortName ?? "-"}</strong></div>
+          <div><span>客户</span><strong>{opportunityCustomers.map((customer) => customer.shortName).join(" / ")}</strong></div>
           <div><span>阶段</span><strong>{opportunity.stage}</strong></div>
           <div><span>预计金额</span><strong>{formatMoney(opportunity.expectedAmount)}</strong></div>
           <div><span>归因收入</span><strong>{formatMoney(opportunity.revenueContribution)}</strong></div>
@@ -113,20 +127,27 @@ export function DetailDrawer({
         <div className="drawer-section">
           <h3>归因链路</h3>
           <div className="timeline compact">
-            <div><strong>商机建立</strong><span>{opportunity.owner} 负责，成功概率 {opportunity.probability}%</span></div>
-            <div><strong>关联交易</strong><span>{opportunity.linkedOrderId ?? "暂无关联订单"}</span></div>
-            <div><strong>业绩沉淀</strong><span>按客户、销售、产品维度形成可追溯业绩。</span></div>
+            <div><strong>销售拜访</strong><span>{opportunity.salesSplits.map((split) => `${split.salesName}${split.ratio}%`).join(" / ")}</span></div>
+            <div><strong>关联客户</strong><span>{opportunityCustomers.map((customer) => customer.shortName).join(" / ")}</span></div>
+            <div><strong>关联交易</strong><span>{attributionSummary || "暂无关联订单"}</span></div>
+            <div><strong>收入形成</strong><span>交易形成持仓后，客户维护费与销售服务费共同计入商机落实收入。</span></div>
+          </div>
+        </div>
+        <div className="drawer-section">
+          <h3>销售分配</h3>
+          <div className="action-chip-list">
+            {opportunity.salesSplits.map((split) => <span key={`${split.salesName}-${split.ratio}`}>{split.role} · {split.salesName} {split.ratio}%</span>)}
           </div>
         </div>
         <div className="drawer-actions">
           <button onClick={() => jumpToCustomer(opportunity.customerId)}>打开客户全景</button>
-          {opportunity.linkedOrderId ? <button onClick={() => openOrder(opportunity.linkedOrderId as string)}>查看关联订单</button> : null}
+          {opportunity.linkedOrders[0] ? <button onClick={() => openOrder(opportunity.linkedOrders[0].orderId)}>查看关联订单</button> : null}
           <button onClick={() => createPreview({
             type: "归因说明",
             title: `${opportunity.name}业绩归因说明`,
-            context: `${customer?.shortName ?? "-"} / ${opportunity.stage}`,
-            summary: `该商机预计金额 ${formatMoney(opportunity.expectedAmount)}，当前归因收入 ${formatMoney(opportunity.revenueContribution)}。`,
-            steps: ["读取商机、客户和关联交易", "计算收入、费用和净贡献", "生成可追溯归因说明草稿"],
+            context: `${opportunityCustomers.map((customer) => customer.shortName).join(" / ")} / ${opportunity.stage}`,
+            summary: `该商机预计金额 ${formatMoney(opportunity.expectedAmount)}，当前归因收入 ${formatMoney(opportunity.revenueContribution)}，销售分配为 ${opportunity.salesSplits.map((split) => `${split.salesName}${split.ratio}%`).join(" / ")}。`,
+            steps: ["读取商机、关联客户和销售分配", "校验交易客户是否属于商机关联客户池", "按交易归因比例计算维护费、销售服务费和净贡献"],
             requiresApproval: false,
           })}>生成归因说明</button>
         </div>

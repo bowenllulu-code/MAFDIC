@@ -5,6 +5,7 @@ import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
   ClipboardList,
+  Layers3,
   Plus,
   PlugZap,
   Search,
@@ -12,7 +13,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { buildEmailPreview, buildReportPreview, buildScheduledTaskPreview } from "../actionPreviews";
+import { buildEmailPreview, buildOrderStatusPreview, buildReportPreview, buildRiskExplanationPreview, buildScheduledTaskPreview } from "../actionPreviews";
 import { DataTable, MetricGrid, OperationQueue, PageHeader, PermissionNotice, StatusBadge, TextButton } from "../components/common";
 import { statusLabel } from "../constants";
 import type { ApiMode, ConsoleDataSnapshot } from "../adapters";
@@ -33,7 +34,33 @@ export function WorkspacePage({
   operationRecords: OperationRecord[];
   updateOperationStatus: (id: string, status: OperationRecord["status"]) => void;
 }) {
-  const { assistantActions, metrics, tasks } = data;
+  const { assistantActions, configs, metrics, reportGenerationRecords, risks, scheduledReportTasks, tasks } = data;
+  const todayFlows = [
+    {
+      title: "处理交易确认异常",
+      desc: `${risks.filter((risk) => risk.severity === "high").length} 条高优先级风险，先核对订单和清算状态`,
+      page: "risks" as PageId,
+      tone: "risk",
+    },
+    {
+      title: "复核配置草稿",
+      desc: `${configs.filter((config) => config.status === "draft" || config.approvalStatus.includes("待")).length} 条配置待提交或待复核`,
+      page: "configs" as PageId,
+      tone: "warning",
+    },
+    {
+      title: "确认报表输出",
+      desc: `${reportGenerationRecords.filter((record) => record.approvalStatus === "待审批").length} 份报表等待审批，${scheduledReportTasks.filter((task) => task.status === "草稿").length} 个定时任务草稿`,
+      page: "performance" as PageId,
+      tone: "neutral",
+    },
+    {
+      title: "检查 AI 待人审",
+      desc: "查看 Agent 生成的报表、邮件、配置说明和定时任务草稿",
+      page: "assistant" as PageId,
+      tone: "neutral",
+    },
+  ];
   return (
     <>
       <PageHeader
@@ -43,6 +70,22 @@ export function WorkspacePage({
       />
       <MetricGrid metrics={metrics} />
       <div className="content-grid">
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>今日核心流程</h2>
+            <span className="status status-pending">可点击处理</span>
+          </div>
+          <div className="flow-grid">
+            {todayFlows.map((flow, index) => (
+              <button className={`flow-card flow-${flow.tone}`} key={flow.title} onClick={() => jump(flow.page)}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{flow.title}</strong>
+                <em>{flow.desc}</em>
+                <ArrowRight size={16} />
+              </button>
+            ))}
+          </div>
+        </section>
         <section className="panel span-7">
           <div className="panel-title">
             <h2>待办与异常</h2>
@@ -64,7 +107,7 @@ export function WorkspacePage({
         </section>
         <section className="panel span-5">
           <div className="panel-title">
-            <h2>AI 建议</h2>
+            <h2>AI 下一步建议</h2>
             <Bot size={18} />
           </div>
           <div className="assistant-suggestions">
@@ -78,7 +121,7 @@ export function WorkspacePage({
         </section>
         <section className="panel span-12">
           <div className="panel-title">
-            <h2>任务与审批队列</h2>
+            <h2>人工确认队列</h2>
             <button className="icon-button" title="查看 AI 助手" onClick={() => jump("assistant")}>
               <Bot size={18} />
             </button>
@@ -119,8 +162,17 @@ export function CustomersPage({
   const selected = customers.find((customer) => customer.id === selectedCustomerId) ?? customers[0];
   const selectedHoldings = holdings.filter((holding) => holding.customerId === selected.id);
   const selectedOrders = orders.filter((order) => order.customerId === selected.id);
-  const selectedOpportunities = opportunities.filter((opportunity) => opportunity.customerId === selected.id);
+  const selectedOpportunities = opportunities.filter((opportunity) => opportunity.customerIds.includes(selected.id));
   const selectedRisks = risks.filter((risk) => risk.relatedCustomerId === selected.id);
+  const totalHoldingValue = selectedHoldings.reduce((total, holding) => total + holding.marketValue, 0);
+  const totalProfit = selectedHoldings.reduce((total, holding) => total + holding.profit, 0);
+  const pendingOrders = selectedOrders.filter((order) => order.confirmationStatus === "pending" || order.confirmationStatus === "warning");
+  const attributionRevenue = selectedOpportunities.reduce((total, opportunity) => total + opportunity.revenueContribution, 0);
+  const customerSignals = [
+    { label: "交易卡点", value: `${pendingOrders.length} 笔`, desc: pendingOrders[0]?.confirmationBlocker ?? "当前无待确认交易卡点" },
+    { label: "风险事件", value: `${selectedRisks.length} 条`, desc: selectedRisks[0]?.currentBlocker ?? "当前无高优先级风险事件" },
+    { label: "商机收入", value: formatMoney(attributionRevenue), desc: selectedOpportunities[0]?.stage ?? "暂无活跃商机归因" },
+  ];
 
   return (
     <>
@@ -165,13 +217,75 @@ export function CustomersPage({
           <div className="mini-metrics">
             <div><span>资产规模</span><strong>{formatMoney(selected.totalAsset)}</strong></div>
             <div><span>年内收入</span><strong>{formatMoney(selected.revenueYtd)}</strong></div>
-            <div><span>标签</span><strong>{selected.tags.join(" / ")}</strong></div>
+            <div><span>服务等级</span><strong>{selected.serviceTier}</strong></div>
+          </div>
+          <div className="customer-brief">
+            <div>
+              <span>资金偏好</span>
+              <strong>{selected.investmentPreference}</strong>
+            </div>
+            <div>
+              <span>当前运营重点</span>
+              <strong>{selected.operationFocus}</strong>
+            </div>
           </div>
           <div className="quick-actions">
             <button onClick={() => jump("transactions")}>查看交易资产 <ArrowRight size={15} /></button>
             <button onClick={() => jump("opportunities")}>查看商机归因 <ArrowRight size={15} /></button>
             <button onClick={() => jump("risks")}>查看风险异常 <ArrowRight size={15} /></button>
           </div>
+          <section className="customer-command">
+            <div className="panel-title">
+              <h2>客户运营信号</h2>
+              <Layers3 size={18} />
+            </div>
+            <div className="customer-signal-grid">
+              {customerSignals.map((signal) => (
+                <article key={signal.label}>
+                  <span>{signal.label}</span>
+                  <strong>{signal.value}</strong>
+                  <em>{signal.desc}</em>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="customer-command">
+            <div className="panel-title">
+              <h2>下一步动作</h2>
+              <Bot size={18} />
+            </div>
+            <div className="customer-action-grid">
+              {selected.nextBestActions.map((action) => <button key={action}>{action}</button>)}
+            </div>
+          </section>
+          <section className="customer-command">
+            <div className="panel-title">
+              <h2>对象关系</h2>
+              <ChartNoAxesCombined size={18} />
+            </div>
+            <div className="customer-relation-grid">
+              <button onClick={() => jump("transactions")}>
+                <span>交易</span>
+                <strong>{selectedOrders.length} 笔</strong>
+                <em>{pendingOrders.length} 笔待确认/异常</em>
+              </button>
+              <button onClick={() => jump("risks")}>
+                <span>风险</span>
+                <strong>{selectedRisks.length} 条</strong>
+                <em>{selectedRisks[0]?.title ?? "暂无风险事件"}</em>
+              </button>
+              <button onClick={() => jump("opportunities")}>
+                <span>商机</span>
+                <strong>{selectedOpportunities.length} 个</strong>
+                <em>{formatMoney(attributionRevenue)} 已归因收入</em>
+              </button>
+              <button onClick={() => jump("performance")}>
+                <span>资产</span>
+                <strong>{formatMoney(totalHoldingValue)}</strong>
+                <em>浮盈亏 {formatMoney(totalProfit)}</em>
+              </button>
+            </div>
+          </section>
           <DataTable
             columns={["基金", "份额", "市值", "浮盈亏"]}
             rows={selectedHoldings.map((holding) => [
@@ -220,14 +334,18 @@ export function TransactionsPage({
   setSelectedCustomerId,
   openOrder,
   openCustomer,
+  openRisk,
+  createPreview,
 }: {
   data: ConsoleDataSnapshot;
   selectedCustomerId: string;
   setSelectedCustomerId: (id: string) => void;
   openOrder: (id: string) => void;
   openCustomer: (id: string) => void;
+  openRisk: (id: string) => void;
+  createPreview: (preview: ActionPreview) => void;
 }) {
-  const { customers, orders } = data;
+  const { customers, holdings, orders, risks } = data;
   const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<"全部" | "待确认" | "异常" | "已完成">("全部");
   const filteredOrders = orders.filter((order) => order.customerId === selectedCustomerId);
@@ -238,6 +356,10 @@ export function TransactionsPage({
     return matchesKeyword && matchesStatus;
   });
   const selected = customers.find((customer) => customer.id === selectedCustomerId) ?? customers[0];
+  const selectedHoldings = holdings.filter((holding) => holding.customerId === selectedCustomerId);
+  const selectedRisks = risks.filter((risk) => risk.relatedCustomerId === selectedCustomerId);
+  const pendingOrders = filteredOrders.filter((order) => order.confirmationStatus === "pending" || order.confirmationStatus === "warning").length;
+  const totalOrderAmount = filteredOrders.reduce((total, order) => total + order.amount, 0);
   return (
     <>
       <PageHeader
@@ -258,7 +380,35 @@ export function TransactionsPage({
         ))}
       </div>
       <div className="content-grid">
-        <section className="panel span-7">
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>交易确认看板</h2>
+            <span className="status status-pending">客户上下文联动</span>
+          </div>
+          <div className="trade-process-grid">
+            <article>
+              <span>当前客户</span>
+              <strong>{selected.shortName}</strong>
+              <em>{filteredOrders.length} 笔交易，合计 {formatMoney(totalOrderAmount)}</em>
+            </article>
+            <article>
+              <span>待确认/异常</span>
+              <strong>{pendingOrders} 笔</strong>
+              <em>优先核对 TA 回执、确认金额、份额和清算状态</em>
+            </article>
+            <article>
+              <span>持仓资产</span>
+              <strong>{selectedHoldings.length} 只基金</strong>
+              <em>交易确认后联动保有量、浮盈亏和资产归因口径</em>
+            </article>
+            <article>
+              <span>关联风险</span>
+              <strong>{selectedRisks.length} 条</strong>
+              <em>可从订单回到风险闭环，保留处理轨迹</em>
+            </article>
+          </div>
+        </section>
+        <section className="panel span-12">
           <div className="panel-title">
             <h2>交易记录</h2>
             <ClipboardList size={18} />
@@ -281,7 +431,7 @@ export function TransactionsPage({
             ))}
           </div>
           <DataTable
-            columns={["订单号", "客户", "基金", "类型", "金额", "状态"]}
+            columns={["订单号", "客户", "基金", "类型", "金额", "确认状态", "卡点"]}
             rows={visibleOrders.map((order) => {
               const customer = customers.find((item) => item.id === order.customerId);
               return [
@@ -291,19 +441,55 @@ export function TransactionsPage({
                 order.tradeType,
                 formatMoney(order.amount),
                 statusLabel[order.confirmationStatus],
+                order.confirmationBlocker,
               ];
             })}
           />
         </section>
-        <section className="panel span-5">
+        <section className="panel span-12">
           <div className="panel-title">
             <h2>资产归因</h2>
             <ChartNoAxesCombined size={18} />
           </div>
-          <div className="timeline">
-            <div><strong>申购流入</strong><span>+1.04 亿，来自 2 笔机构申购</span></div>
-            <div><strong>净值波动</strong><span>-32 万，主要来自中证红利指数</span></div>
-            <div><strong>收益分配</strong><span>+86 万，货币增强产品贡献最高</span></div>
+          <div className="timeline trade-timeline">
+            {visibleOrders.map((order) => {
+              const relatedRisk = risks.find((risk) => risk.relatedOrderId === order.id);
+              const customer = customers.find((item) => item.id === order.customerId);
+              return (
+                <div key={order.id}>
+                  <strong>{order.tradeType} · {formatMoney(order.amount)}</strong>
+                  <span>{order.assetImpact}</span>
+                  <div className="inline-actions">
+                    <button onClick={() => openOrder(order.id)}>订单详情</button>
+                    {relatedRisk ? <button onClick={() => openRisk(relatedRisk.id)}>关联风险</button> : null}
+                    <button onClick={() => createPreview(buildOrderStatusPreview(order, customer?.shortName))}>生成说明</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>确认状态轨迹</h2>
+            <ClipboardList size={18} />
+          </div>
+          <div className="order-flow-list">
+            {visibleOrders.map((order) => (
+              <article key={order.id}>
+                <div>
+                  <span>{order.id}</span>
+                  <strong>{order.fundName}</strong>
+                  <em>{order.confirmationBlocker}</em>
+                </div>
+                <div className="mini-stepper">
+                  {order.settlementTrail.map((step) => <span key={step}>{step}</span>)}
+                </div>
+                <div className="risk-action-list">
+                  {order.nextActions.map((action) => <span key={action}>{action}</span>)}
+                </div>
+              </article>
+            ))}
           </div>
         </section>
       </div>
@@ -316,15 +502,20 @@ export function RisksPage({
   openRisk,
   openCustomer,
   openOrder,
+  createPreview,
 }: {
   data: ConsoleDataSnapshot;
   openRisk: (id: string) => void;
   openCustomer: (id: string) => void;
   openOrder: (id: string) => void;
+  createPreview: (preview: ActionPreview) => void;
 }) {
   const { risks } = data;
   const [severityFilter, setSeverityFilter] = useState<"全部" | "high" | "medium" | "low">("全部");
   const visibleRisks = risks.filter((risk) => severityFilter === "全部" || risk.severity === severityFilter);
+  const highRisks = risks.filter((risk) => risk.severity === "high").length;
+  const pendingRisks = risks.filter((risk) => risk.status === "pending" || risk.status === "warning").length;
+  const linkedOrders = risks.filter((risk) => risk.relatedOrderId).length;
   return (
     <>
       <PageHeader
@@ -344,6 +535,29 @@ export function RisksPage({
         ))}
       </div>
       <div className="content-grid">
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>处置闭环概览</h2>
+            <span className="status status-warning">先核实再闭环</span>
+          </div>
+          <div className="risk-process-grid">
+            <article>
+              <span>优先处理</span>
+              <strong>{highRisks} 条高优先级</strong>
+              <em>先处理交易确认、清算差异和客户影响明确的事件</em>
+            </article>
+            <article>
+              <span>待推进</span>
+              <strong>{pendingRisks} 条未闭环</strong>
+              <em>需要明确责任岗、下一步动作和人工确认记录</em>
+            </article>
+            <article>
+              <span>可追溯</span>
+              <strong>{linkedOrders} 条关联订单</strong>
+              <em>从风险事件直接回到订单、客户和 AI 处理说明</em>
+            </article>
+          </div>
+        </section>
         {visibleRisks.map((risk) => (
           <section className="panel span-4" key={risk.id}>
             <div className="risk-head">
@@ -357,11 +571,20 @@ export function RisksPage({
             <div className="detail-stack">
               <span>规则：{risk.triggeredRule}</span>
               <span>时间：{risk.detectedAt}</span>
-              <strong>{risk.suggestion}</strong>
+              <strong>卡点：{risk.currentBlocker}</strong>
+            </div>
+            <div className="risk-action-list">
+              {risk.nextActions.slice(0, 3).map((action) => <span key={action}>{action}</span>)}
+            </div>
+            <div className="risk-record">
+              <span>最新记录</span>
+              <strong>{risk.handlingRecords.at(-1)}</strong>
             </div>
             <div className="card-actions">
               <button onClick={() => openRisk(risk.id)}>查看详情</button>
               {risk.relatedOrderId ? <button onClick={() => openOrder(risk.relatedOrderId as string)}>关联订单</button> : null}
+              <button onClick={() => createPreview(buildRiskExplanationPreview(risk))}>生成说明</button>
+              <button onClick={() => createPreview(buildEmailPreview(risk))}>草拟邮件</button>
             </div>
           </section>
         ))}
@@ -381,11 +604,59 @@ export function PerformancePage({
   openOpportunity: (id: string) => void;
   createPreview: (preview: ActionPreview) => void;
 }) {
-  const { customers, metricDefinitions, metrics, opportunities, reportGenerationRecords, reportTemplates, scheduledReportTasks } = data;
-  const totalOpportunityRevenue = opportunities.reduce((sum, item) => sum + item.revenueContribution, 0);
+  const {
+    customers,
+    holdings,
+    metricDefinitions,
+    metrics,
+    opportunities,
+    opportunityAttributions,
+    orders,
+    reportGenerationRecords,
+    reportTemplates,
+    risks,
+    scheduledReportTasks,
+  } = data;
+  const totalMaintenanceFee = opportunityAttributions.reduce((sum, item) => sum + item.salesMaintenanceFee, 0);
+  const totalServiceFee = opportunityAttributions.reduce((sum, item) => sum + item.distributionServiceFee, 0);
+  const totalAsset = customers.reduce((sum, customer) => sum + customer.totalAsset, 0);
+  const totalHoldingValue = holdings.reduce((sum, holding) => sum + holding.marketValue, 0);
+  const totalProfit = holdings.reduce((sum, holding) => sum + holding.profit, 0);
+  const totalTradeAmount = orders.reduce((sum, order) => sum + order.amount, 0);
+  const blockedTradeAmount = orders
+    .filter((order) => order.confirmationStatus === "pending" || order.confirmationStatus === "warning")
+    .reduce((sum, order) => sum + order.amount, 0);
+  const openRiskCount = risks.filter((risk) => risk.status !== "closed").length;
   const pendingReportApprovals = reportGenerationRecords.filter((record) => record.approvalStatus === "待审批").length;
   const activeSchedules = scheduledReportTasks.filter((task) => task.status === "启用").length;
   const sensitiveTemplates = reportTemplates.filter((template) => template.sensitivity !== "内部").length;
+  const topCustomers = [...customers].sort((a, b) => b.revenueYtd - a.revenueYtd);
+  const managementSignals = [
+    {
+      title: "资产保有质量",
+      value: formatMoney(totalHoldingValue),
+      desc: `客户资产 ${formatMoney(totalAsset)}，持仓浮盈亏 ${formatMoney(totalProfit)}`,
+      tone: "good",
+    },
+    {
+      title: "交易确认压力",
+      value: formatMoney(blockedTradeAmount),
+      desc: `${orders.filter((order) => order.confirmationStatus !== "closed").length} 笔交易仍在确认链路`,
+      tone: blockedTradeAmount > 0 ? "risk" : "good",
+    },
+    {
+      title: "商机落实收入",
+      value: formatMoney(totalMaintenanceFee + totalServiceFee),
+      desc: `维护费 ${formatMoney(totalMaintenanceFee)} + 销售服务费 ${formatMoney(totalServiceFee)}`,
+      tone: "good",
+    },
+    {
+      title: "风险闭环缺口",
+      value: `${openRiskCount} 条`,
+      desc: risks[0]?.currentBlocker ?? "暂无未闭环风险",
+      tone: openRiskCount > 0 ? "risk" : "good",
+    },
+  ];
   return (
     <>
       <PageHeader
@@ -405,24 +676,74 @@ export function PerformancePage({
         <button onClick={() => createPreview(buildScheduledTaskPreview())}>创建定时推送预览</button>
       </div>
       <div className="content-grid">
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>经营驾驶舱</h2>
+            <span className="status status-pending">管理者视角</span>
+          </div>
+          <div className="insight-grid">
+            {managementSignals.map((signal) => (
+              <article className={`insight-card insight-${signal.tone}`} key={signal.title}>
+                <span>{signal.title}</span>
+                <strong>{signal.value}</strong>
+                <em>{signal.desc}</em>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>经营解释链路</h2>
+            <ChartNoAxesCombined size={18} />
+          </div>
+          <div className="management-flow">
+            <article>
+              <span>1</span>
+              <strong>客户资产</strong>
+              <em>机构客户资产与持仓市值形成经营底盘</em>
+            </article>
+            <article>
+              <span>2</span>
+              <strong>交易确认</strong>
+              <em>交易确认状态决定资产入账、赎回出账和后续收入口径</em>
+            </article>
+            <article>
+              <span>3</span>
+              <strong>商机归因</strong>
+              <em>交易挂接商机后，持仓带来维护费与销售服务费</em>
+            </article>
+            <article>
+              <span>4</span>
+              <strong>风险闭环</strong>
+              <em>异常交易、额度和净值波动影响经营质量判断</em>
+            </article>
+            <article>
+              <span>5</span>
+              <strong>报表输出</strong>
+              <em>管理报告绑定指标口径、人审和推送治理</em>
+            </article>
+          </div>
+        </section>
         <section className="panel span-6">
           <div className="panel-title">
             <h2>客户贡献排行</h2>
             <Banknote size={18} />
           </div>
           <DataTable
-            columns={["客户", "资产", "年内收入"]}
-            rows={customers.map((customer) => [
+            columns={["客户", "服务等级", "资产", "年内收入", "运营重点"]}
+            rows={topCustomers.map((customer) => [
               <TextButton onClick={() => openCustomer(customer.id)}>{customer.shortName}</TextButton>,
+              customer.serviceTier,
               formatMoney(customer.totalAsset),
               formatMoney(customer.revenueYtd),
+              customer.operationFocus,
             ])}
           />
         </section>
         <section className="panel span-6">
           <div className="panel-title">
-            <h2>商机归因收入</h2>
-            <strong>{formatMoney(totalOpportunityRevenue)}</strong>
+            <h2>商机落实收入</h2>
+            <strong>{formatMoney(totalMaintenanceFee + totalServiceFee)}</strong>
           </div>
           <div className="bar-list">
             {opportunities.map((opportunity) => (
@@ -432,6 +753,34 @@ export function PerformancePage({
                 <strong>{formatMoney(opportunity.revenueContribution)}</strong>
               </button>
             ))}
+          </div>
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>收入拆分与质量</h2>
+            <span className="status status-pending">商机归因口径</span>
+          </div>
+          <div className="revenue-quality-grid">
+            <article>
+              <span>客户维护费</span>
+              <strong>{formatMoney(totalMaintenanceFee)}</strong>
+              <em>来自商机关联交易形成持仓后的客户维护收入</em>
+            </article>
+            <article>
+              <span>销售服务费</span>
+              <strong>{formatMoney(totalServiceFee)}</strong>
+              <em>来自销售服务费归集，按商机和销售分配比例沉淀</em>
+            </article>
+            <article>
+              <span>交易总额</span>
+              <strong>{formatMoney(totalTradeAmount)}</strong>
+              <em>确认卡点金额 {formatMoney(blockedTradeAmount)}</em>
+            </article>
+            <article>
+              <span>报表治理</span>
+              <strong>{pendingReportApprovals} 待审批</strong>
+              <em>{sensitiveTemplates} 个敏感模板，输出前必须人工确认</em>
+            </article>
           </div>
         </section>
         <section className="panel span-7">
@@ -737,38 +1086,65 @@ export function OpportunitiesPage({
   const totalExpected = opportunities.reduce((sum, opportunity) => sum + opportunity.expectedAmount, 0);
   const totalRevenue = opportunityAttributions.reduce((sum, attribution) => sum + attribution.revenueAmount, 0);
   const totalFee = opportunityAttributions.reduce((sum, attribution) => sum + attribution.feeAmount, 0);
+  const maintenanceFee = opportunityAttributions.reduce((sum, attribution) => sum + attribution.salesMaintenanceFee, 0);
+  const serviceFee = opportunityAttributions.reduce((sum, attribution) => sum + attribution.distributionServiceFee, 0);
   const netContribution = opportunityAttributions.reduce((sum, attribution) => sum + attribution.netContribution, 0);
+  const linkedCustomers = new Set(opportunities.flatMap((opportunity) => opportunity.customerIds)).size;
+  const linkedOrders = opportunities.reduce((sum, opportunity) => sum + opportunity.linkedOrders.length, 0);
 
   return (
     <>
       <PageHeader
         eyebrow="Opportunity Attribution"
         title="商机归因"
-        description="展示商机从客户、关联交易到收入和业绩结果的可追溯链路。"
+        description="展示从销售拜访、商机创建、客户交易关联、持仓收入形成到业绩分配的可追溯链路。"
       />
       <div className="metric-grid">
         <article className="metric-card"><span>商机预计金额</span><strong>{formatMoney(totalExpected)}</strong><em className="metric-neutral">3 条活跃链路</em></article>
-        <article className="metric-card"><span>收入贡献</span><strong>{formatMoney(totalRevenue)}</strong><em className="metric-good">已归因收入</em></article>
-        <article className="metric-card"><span>费用抵扣</span><strong>{formatMoney(totalFee)}</strong><em className="metric-neutral">交易关联费用</em></article>
+        <article className="metric-card"><span>维护费收入</span><strong>{formatMoney(maintenanceFee)}</strong><em className="metric-good">客户维护费</em></article>
+        <article className="metric-card"><span>销售服务费</span><strong>{formatMoney(serviceFee)}</strong><em className="metric-good">销售服务费</em></article>
         <article className="metric-card"><span>净贡献</span><strong>{formatMoney(netContribution)}</strong><em className="metric-good">可追溯业绩</em></article>
       </div>
       <div className="content-grid">
+        <section className="panel span-12">
+          <div className="panel-title">
+            <h2>收入关系链路</h2>
+            <span className="status status-pending">多对多归因</span>
+          </div>
+          <div className="opportunity-flow">
+            <article><span>1</span><strong>销售拜访客户</strong><em>记录主办/协同销售与分配比例</em></article>
+            <article><span>2</span><strong>创建商机</strong><em>商机可关联多个客户，限定可归因客户池</em></article>
+            <article><span>3</span><strong>客户下交易</strong><em>只有关联客户的交易才能挂接商机</em></article>
+            <article><span>4</span><strong>交易形成持仓</strong><em>持仓产生客户维护费和销售服务费</em></article>
+            <article><span>5</span><strong>归因到商机</strong><em>一笔交易可按比例归因到多个商机</em></article>
+          </div>
+          <div className="opportunity-rule-strip">
+            <span>{linkedCustomers} 个关联客户</span>
+            <span>{linkedOrders} 条商机-交易关系</span>
+            <span>{formatMoney(totalRevenue)} 总收入 = 维护费 + 销售服务费</span>
+            <span>{formatMoney(totalFee)} 费用抵扣</span>
+          </div>
+        </section>
         <section className="panel span-7">
           <div className="panel-title">
             <h2>商机与业绩</h2>
             <BriefcaseBusiness size={18} />
           </div>
           <DataTable
-            columns={["商机", "客户", "关联订单", "阶段", "预计金额", "概率", "归因收入"]}
+            columns={["商机", "关联客户", "关联交易", "销售分配", "阶段", "预计金额", "归因收入"]}
             rows={opportunities.map((opportunity) => {
-              const customer = customers.find((item) => item.id === opportunity.customerId);
+              const opportunityCustomers = customers.filter((item) => opportunity.customerIds.includes(item.id));
               return [
                 <TextButton onClick={() => openOpportunity(opportunity.id)}>{opportunity.name}</TextButton>,
-                <TextButton onClick={() => openCustomer(opportunity.customerId)}>{customer?.shortName ?? "-"}</TextButton>,
-                opportunity.linkedOrderId ? <TextButton onClick={() => openOrder(opportunity.linkedOrderId!)}>{opportunity.linkedOrderId}</TextButton> : "-",
+                opportunityCustomers.map((customer) => (
+                  <TextButton key={customer.id} onClick={() => openCustomer(customer.id)}>{customer.shortName}</TextButton>
+                )),
+                opportunity.linkedOrders.map((link) => (
+                  <TextButton key={link.orderId} onClick={() => openOrder(link.orderId)}>{link.orderId} · {link.allocationRatio}%</TextButton>
+                )),
+                opportunity.salesSplits.map((split) => `${split.salesName} ${split.ratio}%`).join(" / "),
                 opportunity.stage,
                 formatMoney(opportunity.expectedAmount),
-                `${opportunity.probability}%`,
                 formatMoney(opportunity.revenueContribution),
               ];
             })}
@@ -780,9 +1156,10 @@ export function OpportunitiesPage({
             <span className="status status-draft">Phase 3</span>
           </div>
           <div className="timeline">
-            <div><strong>关联交易识别</strong><span>按商机、客户、基金和订单时间窗口建立映射。</span></div>
-            <div><strong>收入费用拆分</strong><span>读取收入和费用记录，计算净贡献。</span></div>
-            <div><strong>置信度提示</strong><span>低置信度链路进入人工复核，不自动确认业绩。</span></div>
+            <div><strong>客户池校验</strong><span>交易客户必须已关联到商机，否则不能挂接该商机。</span></div>
+            <div><strong>交易比例确认</strong><span>同一笔交易可关联多个商机，但归因比例需要人工确认。</span></div>
+            <div><strong>销售分配确认</strong><span>同一商机可关联多个销售，按分配比例沉淀业绩。</span></div>
+            <div><strong>收入拆分</strong><span>客户维护费与销售服务费共同构成代销业务收入。</span></div>
           </div>
         </section>
         <section className="panel span-12">
@@ -791,12 +1168,15 @@ export function OpportunitiesPage({
             <ChartNoAxesCombined size={18} />
           </div>
           <DataTable
-            columns={["商机", "订单", "收入", "费用", "净贡献", "规则", "置信度"]}
+            columns={["商机", "订单", "交易归因", "客户维护费", "销售服务费", "总收入", "费用", "净贡献", "规则", "置信度"]}
             rows={opportunityAttributions.map((attribution) => {
               const opportunity = opportunities.find((item) => item.id === attribution.opportunityId);
               return [
                 opportunity ? <TextButton onClick={() => openOpportunity(opportunity.id)}>{opportunity.name}</TextButton> : "-",
                 <TextButton onClick={() => openOrder(attribution.orderId)}>{attribution.orderId}</TextButton>,
+                `${attribution.opportunityAllocationRatio}%`,
+                formatMoney(attribution.salesMaintenanceFee),
+                formatMoney(attribution.distributionServiceFee),
                 formatMoney(attribution.revenueAmount),
                 formatMoney(attribution.feeAmount),
                 formatMoney(attribution.netContribution),

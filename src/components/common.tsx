@@ -53,8 +53,8 @@ export function OperationQueue({
   if (records.length === 0) {
     return (
       <div className="empty-state">
-        <strong>暂无新动作</strong>
-        <span>AI 生成的说明、报表、邮件、审批草稿会进入这里。</span>
+        <strong>暂无待确认动作</strong>
+        <span>从风险处置、配置变更、报表生成或 AI 助手产生的草稿，会进入这里等待人工确认。</span>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import type { ActionPreview, RiskEvent } from "./domain";
+import type { ActionPreview, RiskEvent, TransactionOrder } from "./domain";
 
 export function buildReportPreview(): ActionPreview {
   return {
@@ -42,6 +42,36 @@ export function buildEmailPreview(risk?: RiskEvent): ActionPreview {
       "整理风险事实、关联订单和命中规则",
       "生成邮件正文、处理建议和需确认事项",
       "发送前必须由运营人员确认收件人、附件和敏感信息",
+    ],
+    requiresApproval: true,
+  };
+}
+
+export function buildRiskExplanationPreview(risk: RiskEvent): ActionPreview {
+  return {
+    type: "异常解释",
+    title: `${risk.title}处理说明`,
+    context: `${risk.relatedCustomer} / ${risk.triggeredRule}`,
+    summary: `${risk.suggestion} 当前卡点：${risk.currentBlocker}`,
+    steps: [
+      "汇总风险事件、关联客户、关联订单和命中规则",
+      "整理当前卡点、处置建议和待确认事项",
+      "生成处理说明草稿，进入人工确认队列后再对外同步",
+    ],
+    requiresApproval: true,
+  };
+}
+
+export function buildOrderStatusPreview(order: TransactionOrder, customerName = "-"): ActionPreview {
+  return {
+    type: "异常解释",
+    title: `${order.id}确认状态说明`,
+    context: `${customerName} / ${order.fundName}`,
+    summary: `${order.confirmationBlocker} 资产影响：${order.assetImpact}`,
+    steps: [
+      "读取订单申请、确认状态和清算轨迹",
+      "整理当前卡点、资产影响和下一步处理动作",
+      "生成状态说明草稿，进入人工确认队列后再对外同步",
     ],
     requiresApproval: true,
   };

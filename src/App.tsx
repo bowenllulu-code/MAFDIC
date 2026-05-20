@@ -347,9 +347,19 @@ function App() {
               setSelectedCustomerId={setSelectedCustomerId}
               openOrder={openOrder}
               openCustomer={openCustomer}
+              openRisk={openRisk}
+              createPreview={setActionPreview}
             />
           )}
-          {activePage === "risks" && <RisksPage data={consoleData} openRisk={openRisk} openCustomer={openCustomer} openOrder={openOrder} />}
+          {activePage === "risks" && (
+            <RisksPage
+              data={consoleData}
+              openRisk={openRisk}
+              openCustomer={openCustomer}
+              openOrder={openOrder}
+              createPreview={setActionPreview}
+            />
+          )}
           {activePage === "performance" && (
             <PerformancePage
               data={consoleData}
@@ -387,6 +397,7 @@ function App() {
         close={() => setDrawer(null)}
         jumpToCustomer={jumpToCustomer}
         openOrder={openOrder}
+        openRisk={openRisk}
         createPreview={setActionPreview}
       />
       <ActionPreviewModal
