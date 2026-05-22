@@ -607,6 +607,87 @@ h2 {
   align-content: start;
 }
 
+.permission-editor {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 14px;
+}
+
+.role-selector-list {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.role-selector-list button {
+  display: grid;
+  gap: 4px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid #d0d7e2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #20242c;
+  cursor: pointer;
+  text-align: left;
+}
+
+.role-selector-list button.active {
+  border-color: #2e90fa;
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.role-selector-list span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.permission-editor-body {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e4e9f0;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.permission-group {
+  display: grid;
+  gap: 10px;
+}
+
+.permission-group > strong {
+  font-size: 14px;
+}
+
+.permission-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.permission-toggle-grid label {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d0d7e2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.permission-toggle-grid input {
+  width: 16px;
+  height: 16px;
+  accent-color: #175cd3;
+}
+
 .table-actions {
   display: flex;
   gap: 6px;
@@ -2316,6 +2397,8 @@ tr:last-child td {
   .permission-card-grid,
   .login-preview,
   .user-form-grid,
+  .permission-editor,
+  .permission-toggle-grid,
   .order-flow-list article {
     grid-template-columns: 1fr;
   }

@@ -23,7 +23,7 @@ import { statusLabel } from "../constants";
 import type { ApiMode, ConsoleDataSnapshot } from "../adapters";
 import type { ActionPreview, AgentTask, ConfigItem, CurrentUser, OperationRecord, PageId, Permission, SystemUser, UserRole } from "../domain";
 import { formatMoney } from "../mockData";
-import { allPages, can, getRolePermissions, roleScope, roles } from "../permissions";
+import { allPages, can, roleScope, roles } from "../permissions";
 
 export function WorkspacePage({
   data,
@@ -1535,6 +1535,8 @@ export function UserCenterPage({
   createUser,
   updateUser,
   deleteUser,
+  rolePermissions,
+  updateRolePermissions,
 }: {
   users: SystemUser[];
   currentUser: CurrentUser;
@@ -1542,11 +1544,14 @@ export function UserCenterPage({
   createUser: (user: SystemUser) => void;
   updateUser: (id: string, patch: Partial<SystemUser>) => void;
   deleteUser: (id: string) => void;
+  rolePermissions: Record<UserRole, Permission[]>;
+  updateRolePermissions: (role: UserRole, permissions: Permission[]) => void;
 }) {
   const [keyword, setKeyword] = useState("");
   const [roleFilter, setRoleFilter] = useState<"全部" | UserRole>("全部");
   const [statusFilter, setStatusFilter] = useState<"全部" | SystemUser["status"]>("全部");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [selectedPermissionRole, setSelectedPermissionRole] = useState<UserRole>("运营");
   const [draftUser, setDraftUser] = useState<Omit<SystemUser, "id" | "lastLogin">>({
     name: "",
     loginName: "",
@@ -1564,6 +1569,7 @@ export function UserCenterPage({
   const canEditUser = can(currentUser, "edit:user");
   const canDeleteUser = can(currentUser, "delete:user");
   const canManageUsers = can(currentUser, "manage:users");
+  const canConfigureRoles = canManageUsers;
   const permissionLabels: Array<{ permission: Permission; label: string }> = [
     { permission: "operate:queue", label: "队列操作" },
     { permission: "approve:operation", label: "人工确认" },
@@ -1572,6 +1578,9 @@ export function UserCenterPage({
     { permission: "execute:ai", label: "AI 动作" },
     { permission: "view:all-data", label: "全量数据" },
     { permission: "manage:users", label: "用户管理" },
+    { permission: "create:user", label: "新增用户" },
+    { permission: "edit:user", label: "编辑用户" },
+    { permission: "delete:user", label: "删除用户" },
   ];
   const statusClass = (status: SystemUser["status"]) => {
     if (status === "启用") return "status-active";
@@ -1579,21 +1588,21 @@ export function UserCenterPage({
     return "status-closed";
   };
   const roleMenuLabels = (role: UserRole) => {
-    const permissions = getRolePermissions(role);
+    const permissions = rolePermissions[role];
     return allPages
       .filter((page) => permissions.includes(`view:${page}`))
       .map((page) => menuLabelMap.get(page) ?? page)
       .join(" / ");
   };
   const roleFormLabels = (role: UserRole) => {
-    const permissions = getRolePermissions(role);
+    const permissions = rolePermissions[role];
     const labels = permissionLabels
       .filter((item) => permissions.includes(item.permission))
       .map((item) => item.label);
     return labels.length > 0 ? labels.join(" / ") : "仅查看";
   };
   const riskLabels = (role: UserRole) => {
-    const permissions = getRolePermissions(role);
+    const permissions = rolePermissions[role];
     const labels = [
       permissions.includes("manage:users") ? "用户与权限变更" : null,
       permissions.includes("approve:config") ? "配置审批生效" : null,
@@ -1650,6 +1659,15 @@ export function UserCenterPage({
     });
     resetDraft();
   };
+  const toggleRolePermission = (permission: Permission) => {
+    if (!canConfigureRoles) return;
+    const currentPermissions = rolePermissions[selectedPermissionRole];
+    const nextPermissions = currentPermissions.includes(permission)
+      ? currentPermissions.filter((item) => item !== permission)
+      : [...currentPermissions, permission];
+    updateRolePermissions(selectedPermissionRole, nextPermissions);
+  };
+  const permissionChecked = (permission: Permission) => rolePermissions[selectedPermissionRole].includes(permission);
 
   return (
     <>
@@ -1781,6 +1799,67 @@ export function UserCenterPage({
         </section>
         <section className="panel span-12">
           <div className="panel-title">
+            <h2>角色权限配置</h2>
+            <span className="status status-pending">勾选后即时生效</span>
+          </div>
+          <div className="permission-editor">
+            <div className="role-selector-list">
+              {roles.map((role) => (
+                <button
+                  className={selectedPermissionRole === role ? "active" : ""}
+                  key={role}
+                  onClick={() => setSelectedPermissionRole(role)}
+                >
+                  <strong>{role}</strong>
+                  <span>{roleScope[role]}</span>
+                </button>
+              ))}
+            </div>
+            <div className="permission-editor-body">
+              <div className="panel-title">
+                <h2>{selectedPermissionRole} 权限</h2>
+                <ShieldCheck size={18} />
+              </div>
+              <div className="permission-group">
+                <strong>菜单权限</strong>
+                <div className="permission-toggle-grid">
+                  {navigationItems.map((item) => (
+                    <label key={item.id}>
+                      <input
+                        type="checkbox"
+                        checked={permissionChecked(`view:${item.id}`)}
+                        disabled={!canConfigureRoles}
+                        onChange={() => toggleRolePermission(`view:${item.id}`)}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="permission-group">
+                <strong>表单/动作权限</strong>
+                <div className="permission-toggle-grid">
+                  {permissionLabels.map((item) => (
+                    <label key={item.permission}>
+                      <input
+                        type="checkbox"
+                        checked={permissionChecked(item.permission)}
+                        disabled={!canConfigureRoles}
+                        onChange={() => toggleRolePermission(item.permission)}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {!canConfigureRoles ? (
+                <PermissionNotice title="权限配置受限" message={`${currentUser.role} 当前没有 manage:users 权限，不能调整角色权限。`} />
+              ) : null}
+            </div>
+          </div>
+        </section>
+        <section className="panel span-12">
+          <div className="panel-title">
             <h2>角色权限矩阵</h2>
             <ShieldCheck size={18} />
           </div>
@@ -1802,7 +1881,7 @@ export function UserCenterPage({
           </div>
           <div className="permission-card-grid">
             {permissionLabels.map((item) => {
-              const ownerRoles = roles.filter((role) => getRolePermissions(role).includes(item.permission));
+              const ownerRoles = roles.filter((role) => rolePermissions[role].includes(item.permission));
               return (
                 <article className="permission-card" key={item.permission}>
                   <span>{item.label}</span>

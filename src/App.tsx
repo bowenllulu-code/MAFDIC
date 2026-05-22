@@ -19,7 +19,7 @@ import { apiModeLabel, createConsoleApiClient } from "./apiClientFactory";
 import { snapshotFromProvider, type ApiMode, type ApiResponse, type ConsoleDataSnapshot } from "./adapters";
 import { ActionPreviewModal, DetailDrawer, GlobalAssistantDrawer } from "./components/overlays";
 import { mockProvider } from "./mockProvider";
-import { buildUser, can, canView, roles, roleScope } from "./permissions";
+import { buildUser, can, canView, defaultRolePermissions, roles, roleScope } from "./permissions";
 import {
   AssistantPage,
   ConfigsPage,
@@ -32,7 +32,7 @@ import {
   UserCenterPage,
   WorkspacePage,
 } from "./pages/consolePages";
-import type { ActionPreview, AgentTask, DrawerState, OperationRecord, PageId, SystemUser, UserRole } from "./domain";
+import type { ActionPreview, AgentTask, DrawerState, OperationRecord, PageId, Permission, SystemUser, UserRole } from "./domain";
 
 const initialData = snapshotFromProvider(mockProvider);
 
@@ -116,6 +116,7 @@ function App() {
   const [activePage, setActivePage] = useState<PageId>("workspace");
   const [selectedRole, setSelectedRole] = useState<UserRole>("运营");
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>(initialSystemUsers);
+  const [rolePermissions, setRolePermissions] = useState<Record<UserRole, Permission[]>>(defaultRolePermissions);
   const [selectedLoginUserId, setSelectedLoginUserId] = useState(initialSystemUsers[0].id);
   const [currentAccountId, setCurrentAccountId] = useState(initialSystemUsers[0].id);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -140,14 +141,14 @@ function App() {
   const current = useMemo(() => navigation.find((item) => item.id === activePage), [activePage]);
   const currentAccount = useMemo(() => systemUsers.find((user) => user.id === currentAccountId) ?? systemUsers[0], [currentAccountId, systemUsers]);
   const currentUser = useMemo(() => {
-    const user = buildUser(selectedRole);
+    const user = buildUser(selectedRole, rolePermissions[selectedRole]);
     return {
       ...user,
       id: currentAccount.id,
       name: currentAccount.name,
       dataScope: currentAccount.role === selectedRole ? currentAccount.dataScope : roleScope[selectedRole],
     };
-  }, [currentAccount, selectedRole]);
+  }, [currentAccount, rolePermissions, selectedRole]);
   const apiClient = useMemo(() => createConsoleApiClient(apiMode), [apiMode]);
   const loadModularConsoleData = useCallback(async (): Promise<ApiResponse<ConsoleDataSnapshot>> => {
     const [
@@ -458,7 +459,7 @@ function App() {
               <span>{currentUser.dataScope}</span>
               <select value={selectedRole} onChange={(event) => {
                 const nextRole = event.target.value as UserRole;
-                const nextUser = buildUser(nextRole);
+                const nextUser = buildUser(nextRole, rolePermissions[nextRole]);
                 setSelectedRole(nextRole);
                 if (!canView(nextUser, activePage)) setActivePage("workspace");
               }}>
@@ -601,6 +602,11 @@ function App() {
               deleteUser={(id) => {
                 if (id === currentAccountId) return;
                 setSystemUsers((currentUsers) => currentUsers.filter((user) => user.id !== id));
+              }}
+              rolePermissions={rolePermissions}
+              updateRolePermissions={(role, permissions) => {
+                setRolePermissions((currentPermissions) => ({ ...currentPermissions, [role]: permissions }));
+                if (role === selectedRole && !permissions.includes(`view:${activePage}`)) setActivePage("workspace");
               }}
             />
           )}

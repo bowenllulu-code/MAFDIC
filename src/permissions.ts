@@ -15,7 +15,7 @@ const businessManagementBasePermissions: Permission[] = [
   "manage:users",
 ];
 
-const rolePermissions: Record<UserRole, Permission[]> = {
+export const defaultRolePermissions: Record<UserRole, Permission[]> = {
   运营: [
     ...businessManagementBasePermissions,
     "create:user",
@@ -47,19 +47,19 @@ export const roleScope: Record<UserRole, CurrentUser["dataScope"]> = {
   业务主管: "全机构",
 };
 
-export const roles = Object.keys(rolePermissions) as UserRole[];
+export const roles = Object.keys(defaultRolePermissions) as UserRole[];
 
 export function getRolePermissions(role: UserRole) {
-  return rolePermissions[role];
+  return defaultRolePermissions[role];
 }
 
-export function buildUser(role: UserRole): CurrentUser {
+export function buildUser(role: UserRole, permissions = defaultRolePermissions[role]): CurrentUser {
   return {
     id: `USER-${role}`,
     name: role === "销售经理" ? "陈明" : role === "销售总监" ? "沈知远" : role === "业务主管" ? "周岚" : "运营用户",
     role,
     dataScope: roleScope[role],
-    permissions: rolePermissions[role],
+    permissions,
   };
 }
 
